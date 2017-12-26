@@ -92,6 +92,20 @@ public class SSL_client {
 
         switch (bf.readLine()) {
             case "1":
+
+                System.out.println("Uso: \n"
+                        + "id_propietario: example@alumnos.uvigo.es \n"
+                        + "nombreDoc: nombre de fichero (100 caract. max.)\n "
+                        + "tipoConfidencialidad: PRIVADO/PUBLICO \n"
+                        + "documento: documento a registrar \n"
+                        + "firmaDoc: firma del propietario sobre el documento (rsa o dsa) \n"
+                        + "CertFirma(c): cert. KP de firma del propietario \n");
+
+                String entrada = bf.readLine();
+                String[] partes = entrada.split("\\s+");
+                
+                
+                
                 break;
 
             case "2":
