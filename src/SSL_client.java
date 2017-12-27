@@ -42,7 +42,7 @@ public class SSL_client {
 
     private static final String HOST = "localhost";
     private static final int PORT = 8080;
-    private static final String RAIZ = "/home/expploitt/";
+    private static final String RAIZ = "";
     private static String keyStore, trustStore;
 
     private static String keyStorePass, trustStorePass;
