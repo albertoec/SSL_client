@@ -61,7 +61,24 @@ public class SSL_client {
             SSLSocket socket = (SSLSocket) socketFactory.createSocket(HOST, PORT);
 
             String[] suites = socket.getSupportedCipherSuites();
-            socket.setEnabledCipherSuites(suites);
+            System.out.println("\n***** SELECCIONE UNA CYPHER SUYTE ***** \n");
+
+            for (int i = 0; i < suites.length; i++) {
+                System.out.println((i + 1) + ".-" + suites[i]);
+            }
+
+            int suite;
+
+            do {
+                System.out.println("Indique el número de la suite elegida: ");
+                System.err.println("> ");
+                suite = Integer.parseInt(buffer.readLine());
+            } while (suite < 1 || suite > suites.length);
+
+            String aux = suites[suite];
+            String[] newSuites = {aux};
+            suites = null;
+            socket.setEnabledCipherSuites(newSuites);
 
             System.out.println("Comienzo SSL Handshake -- Cliente y Server Autenticados");
 
@@ -93,19 +110,20 @@ public class SSL_client {
         switch (bf.readLine()) {
             case "1":
 
-                System.out.println("Uso: \n"
-                        + "id_propietario: example@alumnos.uvigo.es \n"
-                        + "nombreDoc: nombre de fichero (100 caract. max.)\n "
-                        + "tipoConfidencialidad: PRIVADO/PUBLICO \n"
-                        + "documento: documento a registrar \n"
-                        + "firmaDoc: firma del propietario sobre el documento (rsa o dsa) \n"
-                        + "CertFirma(c): cert. KP de firma del propietario \n");
+                System.out.println("********************************************");
+                System.out.println("*          REGISTRAR DOCUMENTO             *");
+                System.out.println("********************************************");
+                System.out.println("\nUso: \n"
+                        + "id_propietario:           example@alumnos.uvigo.es \n"
+                        + "nombreDoc:                nombre de fichero (100 caract. max.)\n "
+                        + "tipoConfidencialidad:     PRIVADO/PUBLICO \n"
+                        + "documento:                documento a registrar \n"
+                        + "firmaDoc:                 firma del propietario sobre el documento (rsa o dsa) \n"
+                        + "CertFirma(c):             cert. KP de firma del propietario \n");
 
                 String entrada = bf.readLine();
                 String[] partes = entrada.split("\\s+");
-                
-                
-                
+
                 break;
 
             case "2":
@@ -119,7 +137,8 @@ public class SSL_client {
 
     public void definirKeyStores() {
 
-        System.setProperty("javax.net.debug", "all");
+        //--------   Para Debugguear el handshake ---------
+        //System.setProperty("javax.net.debug", "all");
         // ----  Almacenes mios  -----------------------------
         // Almacen de claves
         System.setProperty("javax.net.ssl.keyStore", RAIZ + keyStore + ".jce");
@@ -138,7 +157,7 @@ public class SSL_client {
      * getServerSocketFactory(String type) {}
      * ***************************************************
      */
-    private static SocketFactory getServerSocketFactory(String type) {
+    private static SocketFactory getServerSocketFactory(String type){
 
         if (type.equals("TLS")) {
 
