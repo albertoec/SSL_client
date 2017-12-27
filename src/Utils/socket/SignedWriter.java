@@ -69,6 +69,7 @@ public class SignedWriter extends SocketWriter {
             byte[] clave = certificado.getEncoded(); //por último se envía el cert.
             writeLong(clave.length);
             write(clave);
+            flush();
             return true;
         } catch (Exception ex) {
             return false;
