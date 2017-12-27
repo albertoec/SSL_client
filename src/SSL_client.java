@@ -1,19 +1,30 @@
 
 import java.io.BufferedReader;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.security.Certificate;
+import java.security.InvalidKeyException;
 import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.Signature;
+import java.security.SignatureException;
+import java.security.UnrecoverableEntryException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.net.ServerSocketFactory;
 import javax.net.SocketFactory;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
+import Utils.socket.SocketWriter;
+import java.security.cert.X509Certificate;
 
 /*
  * To change this license header, choose License Headers in Project Properties.
@@ -88,6 +99,77 @@ public class SSL_client {
 
             new SSL_client().mainMenu(buffer);
 
+            System.out.println("¿Qué desea hacer?");
+            System.out.print("> ");
+
+            switch (buffer.readLine()) {
+                case "1":
+
+                    System.out.println("********************************************");
+                    System.out.println("*          REGISTRAR DOCUMENTO             *");
+                    System.out.println("********************************************");
+
+                    boolean error = false;
+                    String id_propietario;
+                    String nombreDoc;
+                    String tipoConfidencialidad;
+                    String documento = null;
+
+                    do {
+                        System.out.println("\nUso: \n"
+                                + "id_propietario:           example@alumnos.uvigo.es \n"
+                                + "nombreDoc:                nombre de fichero (100 caract. max.)\n "
+                                + "tipoConfidencialidad:     PRIVADO/PUBLICO \n"
+                                + "documento:                documento a registrar \n");
+
+                        System.out.println("> ");
+                        String entrada = buffer.readLine();
+                        String[] partes = entrada.split("\\s+");
+
+                        if (partes.length == 4) {
+                            
+                            error = false;
+                            id_propietario = partes[0].trim();
+                            nombreDoc = partes[1].trim();
+                            tipoConfidencialidad = partes[2].trim();
+                            documento = partes[3].trim();
+
+                            /*if (nombreDoc.length() > 100) {
+                                error = true;
+                            }
+                            if (!tipoConfidencialidad.equalsIgnoreCase("privado") || !tipoConfidencialidad.equalsIgnoreCase("publico")) {
+                                error = true;
+                            }*/
+                            
+                        } else {
+                            error = true;
+                        }
+
+                    } while (error);
+
+                    SocketWriter socketWriter = new SocketWriter(socket);
+                    byte[] firma = null;
+                    X509Certificate cert = null;
+
+                    try {
+                        firma = SSL_client.sign(documento, keyStore);
+                        cert = SSL_client.getCertificate(keyStore, keyStorePass, "client_firma");
+
+                    } catch (KeyStoreException | NoSuchAlgorithmException | UnrecoverableEntryException | InvalidKeyException | SignatureException | CertificateException ex) {
+                        Logger.getLogger(SSL_client.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+
+                    /*AQUI DEBERIAMOS HACER LA ESCRITURA */
+                    break;
+
+                case "2":
+                    break;
+
+                default:
+                    System.out.println("Saliendo de la aplicación...");
+                    System.exit(0);
+            }
+
         } catch (IOException ex) {
             Logger.getLogger(SSL_client.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -104,35 +186,6 @@ public class SSL_client {
         System.out.println("2) Recuperar documento");
         System.out.println("3) Salir");
 
-        System.out.println("¿Qué desea hacer?");
-        System.out.print("> ");
-
-        switch (bf.readLine()) {
-            case "1":
-
-                System.out.println("********************************************");
-                System.out.println("*          REGISTRAR DOCUMENTO             *");
-                System.out.println("********************************************");
-                System.out.println("\nUso: \n"
-                        + "id_propietario:           example@alumnos.uvigo.es \n"
-                        + "nombreDoc:                nombre de fichero (100 caract. max.)\n "
-                        + "tipoConfidencialidad:     PRIVADO/PUBLICO \n"
-                        + "documento:                documento a registrar \n"
-                        + "firmaDoc:                 firma del propietario sobre el documento (rsa o dsa) \n"
-                        + "CertFirma(c):             cert. KP de firma del propietario \n");
-
-                String entrada = bf.readLine();
-                String[] partes = entrada.split("\\s+");
-
-                break;
-
-            case "2":
-                break;
-
-            default:
-                System.out.println("Saliendo de la aplicación...");
-                System.exit(0);
-        }
     }
 
     public void definirKeyStores() {
@@ -157,7 +210,7 @@ public class SSL_client {
      * getServerSocketFactory(String type) {}
      * ***************************************************
      */
-    private static SocketFactory getServerSocketFactory(String type){
+    private static SocketFactory getServerSocketFactory(String type) {
 
         if (type.equals("TLS")) {
 
@@ -207,4 +260,81 @@ public class SSL_client {
         return null;
     }
 
+    private static byte[] sign(String docPath, String keyStore) throws KeyStoreException, IOException, NoSuchAlgorithmException, UnrecoverableEntryException, UnrecoverableEntryException, InvalidKeyException, SignatureException, CertificateException {
+
+        FileInputStream fmensaje = new FileInputStream(docPath);
+
+        String provider = "SunJCE";
+        String algoritmo = "SHA1withRSA";
+        byte bloque[] = new byte[1024];
+        long filesize = 0;
+        int longbloque;
+
+        // Variables para el KeyStore
+        KeyStore ks;
+        char[] ks_password = keyStorePass.toCharArray();
+        char[] key_password = keyStorePass.toCharArray();
+
+        String entry_alias = "client_firma";
+
+        System.out.println("******************************************* ");
+        System.out.println("*               FIRMA                     * ");
+        System.out.println("******************************************* ");
+
+        // Obtener la clave privada del keystore
+        ks = KeyStore.getInstance("JCEKS");
+
+        ks.load(new FileInputStream(keyStore + ".jce"), ks_password);
+
+        KeyStore.PrivateKeyEntry pkEntry = (KeyStore.PrivateKeyEntry) ks.getEntry(entry_alias, new KeyStore.PasswordProtection(key_password));
+        System.err.println(pkEntry);
+        PrivateKey privateKey = pkEntry.getPrivateKey();
+
+        // Visualizar clave privada
+        System.out.println("*** CLAVE PRIVADA ***");
+        System.out.println("Algoritmo de Firma (sin el Hash): " + privateKey.getAlgorithm());
+        System.out.println(privateKey);
+
+        // Creamos un objeto para firmar/verificar
+        Signature signer = Signature.getInstance(algoritmo);
+
+        // Inicializamos el objeto para firmar
+        signer.initSign(privateKey);
+
+        // Para firmar primero pasamos el hash al mensaje (metodo "update")
+        // y despues firmamos el hash (metodo sign).
+        byte[] firma = null;
+
+        while ((longbloque = fmensaje.read(bloque)) > 0) {
+            filesize = filesize + longbloque;
+            signer.update(bloque, 0, longbloque);
+        }
+
+        firma = signer.sign();
+
+        double v = firma.length;
+
+        System.out.println("*** FIRMA: ****");
+        for (int i = 0; i < firma.length; i++) {
+            System.out.print(firma[i] + " ");
+        }
+        System.out.println();
+        System.out.println();
+
+        fmensaje.close();
+
+        return firma;
+
+    }
+
+    private static X509Certificate getCertificate(String keyStore, String keyStorePwd, String aliasCertificate) throws FileNotFoundException, KeyStoreException, IOException, NoSuchAlgorithmException, UnrecoverableKeyException, CertificateException {
+
+        KeyStore keystore = KeyStore.getInstance("JCEKS");
+        keystore.load(new FileInputStream(keyStore + ".jce"), keyStorePwd.toCharArray());
+        X509Certificate cert;
+
+        cert = (X509Certificate) keystore.getCertificate(aliasCertificate);
+
+        return cert;
+    }
 }
