@@ -24,6 +24,9 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
 import Utils.socket.SocketWriter;
+import java.io.ByteArrayInputStream;
+import java.security.PublicKey;
+import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 
 /*
@@ -127,7 +130,7 @@ public class SSL_client {
                         String[] partes = entrada.split("\\s+");
 
                         if (partes.length == 4) {
-                            
+
                             error = false;
                             id_propietario = partes[0].trim();
                             nombreDoc = partes[1].trim();
@@ -136,11 +139,9 @@ public class SSL_client {
 
                             /*if (nombreDoc.length() > 100) {
                                 error = true;
-                            }
-                            if (!tipoConfidencialidad.equalsIgnoreCase("privado") || !tipoConfidencialidad.equalsIgnoreCase("publico")) {
+                            } else if (!tipoConfidencialidad.equalsIgnoreCase("privado") || !tipoConfidencialidad.equalsIgnoreCase("publico")) {
                                 error = true;
                             }*/
-                            
                         } else {
                             error = true;
                         }
@@ -152,7 +153,7 @@ public class SSL_client {
                     X509Certificate cert = null;
 
                     try {
-                        firma = SSL_client.sign(documento, keyStore);
+                        firma = SSL_client.sign(documento, keyStore, "client_firma");
                         cert = SSL_client.getCertificate(keyStore, keyStorePass, "client_firma");
 
                     } catch (KeyStoreException | NoSuchAlgorithmException | UnrecoverableEntryException | InvalidKeyException | SignatureException | CertificateException ex) {
@@ -260,7 +261,7 @@ public class SSL_client {
         return null;
     }
 
-    private static byte[] sign(String docPath, String keyStore) throws KeyStoreException, IOException, NoSuchAlgorithmException, UnrecoverableEntryException, UnrecoverableEntryException, InvalidKeyException, SignatureException, CertificateException {
+    private static byte[] sign(String docPath, String keyStore, String entry_alias) throws KeyStoreException, IOException, NoSuchAlgorithmException, UnrecoverableEntryException, UnrecoverableEntryException, InvalidKeyException, SignatureException, CertificateException {
 
         FileInputStream fmensaje = new FileInputStream(docPath);
 
@@ -274,8 +275,6 @@ public class SSL_client {
         KeyStore ks;
         char[] ks_password = keyStorePass.toCharArray();
         char[] key_password = keyStorePass.toCharArray();
-
-        String entry_alias = "client_firma";
 
         System.out.println("******************************************* ");
         System.out.println("*               FIRMA                     * ");
@@ -325,6 +324,73 @@ public class SSL_client {
 
         return firma;
 
+    }
+
+    private static boolean verify(String docPath, byte[] firma, String entry_alias) throws FileNotFoundException, CertificateException, InvalidKeyException, SignatureException, NoSuchAlgorithmException, IOException, KeyStoreException {
+
+        /**
+         * *****************************************************************
+         * Verificacion
+         * ****************************************************************
+         */
+        System.out.println("************************************* ");
+        System.out.println("        VERIFICACION                  ");
+        System.out.println("************************************* ");
+
+        FileInputStream fmensajeV = new FileInputStream(docPath);
+        byte bloque[] = new byte[1024];
+        long filesize = 0;
+        int longbloque;
+
+        KeyStore ks;
+        char[] ks_password = keyStorePass.toCharArray();
+        char[] key_password = keyStorePass.toCharArray();
+
+        ks = KeyStore.getInstance("JCEKS");
+        ks.load(new FileInputStream(keyStore + ".jce"), ks_password);
+
+        // Obtener la clave publica del keystore
+        PublicKey publicKey = ks.getCertificate(entry_alias).getPublicKey();
+
+        System.out.println("*** CLAVE PUBLICA ***");
+        System.out.println(publicKey);
+
+        // Obtener el usuario del Certificado tomado del KeyStore.
+        //   Hay que traducir el formato de certificado del formato del keyStore
+        //	 al formato X.509. Para eso se usa un CertificateFactory.
+        byte[] certificadoRaw = ks.getCertificate(entry_alias).getEncoded();
+        ByteArrayInputStream inStream = null;
+        inStream = new ByteArrayInputStream(certificadoRaw);
+
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+        X509Certificate cert = (X509Certificate) cf.generateCertificate(inStream);
+
+        // Creamos un objeto para verificar, pasandole el algoritmo leido del certificado.
+        Signature verifier = Signature.getInstance(cert.getSigAlgName());
+
+        // Inicializamos el objeto para verificar
+        verifier.initVerify(publicKey);
+
+        while ((longbloque = fmensajeV.read(bloque)) > 0) {
+            filesize = filesize + longbloque;
+            verifier.update(bloque, 0, longbloque);
+        }
+
+        boolean resultado = false;
+
+        resultado = verifier.verify(firma);
+
+        System.out.println();
+        if (resultado == true) {
+            System.out.print("Verificacion correcta de la Firma");
+
+        } else {
+            System.out.print("Fallo de verificacion de firma");
+            return false;
+        }
+
+        fmensajeV.close();
+        return true;
     }
 
     private static X509Certificate getCertificate(String keyStore, String keyStorePwd, String aliasCertificate) throws FileNotFoundException, KeyStoreException, IOException, NoSuchAlgorithmException, UnrecoverableKeyException, CertificateException {
