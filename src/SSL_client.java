@@ -1,10 +1,11 @@
 
+import Utils.socket.SignedWriter;
+import Utils.socket.SocketReader;
 import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.security.Certificate;
 import java.security.InvalidKeyException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -44,8 +45,16 @@ public class SSL_client {
     private static final int PORT = 8080;
     private static final String RAIZ = "";
     private static String keyStore, trustStore;
-
     private static String keyStorePass, trustStorePass;
+
+    public static final int NO_OPERATION = 0;
+    public static final int REGISTRAR = 1;
+    public static final int RECUPERAR = 2;
+    public static final int READY = 255;
+
+    public static final String FAIL_CERT = "CERTIFICADO INCORRECTO";
+    public static final String FAIL_SIGN = "FIRMA INCORRECTA";
+    public static final String OK = "OK";
 
     public static void main(String[] args) {
 
@@ -113,9 +122,9 @@ public class SSL_client {
                     System.out.println("********************************************");
 
                     boolean error = false;
-                    String id_propietario;
-                    String nombreDoc;
-                    String tipoConfidencialidad;
+                    String id_propietario = null;
+                    String nombreDoc = null;
+                    String tipoConfidencialidad = null;
                     String documento = null;
 
                     do {
@@ -151,10 +160,39 @@ public class SSL_client {
                     SocketWriter socketWriter = new SocketWriter(socket);
                     byte[] firma = null;
                     X509Certificate cert = null;
+                    boolean confidencialidad = false;
+
+                    confidencialidad = tipoConfidencialidad.equalsIgnoreCase("privado");
 
                     try {
+
                         firma = SSL_client.sign(documento, keyStore, "client_firma");
                         cert = SSL_client.getCertificate(keyStore, keyStorePass, "client_firma");
+
+                        /*-------- ESCRIBIMOS EL CÓDIGO DE OPERACIÓN ---------*/
+                        SignedWriter signedWriter = new SignedWriter(socket);
+                        SocketReader socketReader = new SocketReader(socket);
+
+                        signedWriter.write(REGISTRAR);
+                        signedWriter.flush();
+
+                        if (socketReader.read() == NO_OPERATION) {
+                            System.out.println("Operación no operativa en el servidor");
+                            System.exit(0);
+                        }
+
+                        signedWriter.SendSignedFile(id_propietario, nombreDoc, confidencialidad, documento, firma, cert);
+
+                        String resultadoCert = socketReader.readString();
+                        String resultadoSign = socketReader.readString();
+                        
+                        if (!resultadoCert.equalsIgnoreCase(SSL_client.FAIL_CERT)) {
+                            System.out.println(SSL_client.FAIL_CERT);
+                        } else if (!resultadoSign.equalsIgnoreCase(SSL_client.FAIL_SIGN)) {
+                            System.out.println(SSL_client.FAIL_SIGN);
+                        } else {
+                            System.out.println("\n****** REGISTRO CORRECTO *******");
+                        }
 
                     } catch (KeyStoreException | NoSuchAlgorithmException | UnrecoverableEntryException | InvalidKeyException | SignatureException | CertificateException ex) {
                         Logger.getLogger(SSL_client.class.getName()).log(Level.SEVERE, null, ex);
@@ -266,7 +304,7 @@ public class SSL_client {
         FileInputStream fmensaje = new FileInputStream(docPath);
 
         String provider = "SunJCE";
-        String algoritmo = "SHA1withRSA";
+        String algoritmo = "SHA256withRSA";
         byte bloque[] = new byte[1024];
         long filesize = 0;
         int longbloque;
@@ -382,10 +420,10 @@ public class SSL_client {
 
         System.out.println();
         if (resultado == true) {
-            System.out.print("Verificacion correcta de la Firma");
+            System.out.println("Verificacion correcta de la Firma");
 
         } else {
-            System.out.print("Fallo de verificacion de firma");
+            System.out.println("Fallo de verificacion de firma");
             return false;
         }
 

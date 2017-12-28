@@ -5,6 +5,8 @@
         <group>
             <file>file:/home/expploitt/NetBeansProjects/ProyectoSeguridad/SSL_client/src/Utils/socket/SocketWriter.java</file>
             <file>file:/home/expploitt/NetBeansProjects/ProyectoSeguridad/SSL_client/src/SSL_client.java</file>
+            <file>file:/home/expploitt/NetBeansProjects/ProyectoSeguridad/SSL_client/src/Utils/socket/SignedWriter.java</file>
+            <file>file:/home/expploitt/NetBeansProjects/ProyectoSeguridad/SSL_client/src/Utils/socket/SocketReader.java</file>
         </group>
     </open-files>
 </project-private>

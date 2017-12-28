@@ -44,33 +44,45 @@ public class SignedWriter extends SocketWriter {
      * @return true si se ha enviado correctamente o false en caso contrario.
      */
     public boolean SendSignedFile(String id, String nombre_doc, boolean confidencialidad, String ruta, byte[] firma, X509Certificate certificado) {
+
         try {
+
             File file = new File(ruta);
             InputStream in = new FileInputStream(file);
             long longitud = file.length();
-            writeLong(longitud); //manda la longitud del fichero para saver cuanto tiene que leer
+
+            writeLong(longitud); //manda la longitud del fichero para saber cuanto tiene que leer
             flush();
+
             byte[] bytes = new byte[1024];
             int leidos;
+
             while ((leidos = in.read(bytes)) > 0) {
                 write(Arrays.copyOfRange(bytes, 0, leidos));
             }
+
             flush();
             in.close(); //ya se ha enviado el fichero, así que se cierra el doc
+
+            //-----ESCRITURA-------
             writeLong(firma.length); //se envía la firma del doc. Primero su longitud
             write(firma);
             writeString(id); //se manda el identificador del cliente
             writeString(nombre_doc); //se manda el nombre del documento
+
             if (confidencialidad) { //se envia el tipo de confidencialidad
                 write(1);
             } else {
                 write(0);
             }
+
             byte[] clave = certificado.getEncoded(); //por último se envía el cert.
             writeLong(clave.length);
             write(clave);
+
             flush();
             return true;
+
         } catch (Exception ex) {
             return false;
         }
