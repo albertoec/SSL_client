@@ -1,7 +1,6 @@
 
 import Utils.socket.SignedReader;
 import Utils.socket.SignedWriter;
-import Utils.socket.SocketReader;
 import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -25,13 +24,10 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
-import Utils.socket.SocketWriter;
-import graphic.Principal;
 import java.io.ByteArrayInputStream;
 import java.security.PublicKey;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
-import java.time.Clock;
 
 /*
  * To change this license header, choose License Headers in Project Properties.
@@ -94,7 +90,7 @@ public class SSL_client {
             System.out.println("\n***** SELECCIONE UNA CYPHER SUITE ***** \n");
 
             for (int i = 1; i < suites.length+1; i++) {
-                System.out.println(i + ".-" + suites[i]);
+                System.out.println(i + ".-" + suites[i-1]);
             }
 
             int suite;
