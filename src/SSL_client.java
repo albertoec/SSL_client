@@ -25,6 +25,7 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
 import java.io.ByteArrayInputStream;
+import java.security.MessageDigest;
 import java.security.PublicKey;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
@@ -89,8 +90,8 @@ public class SSL_client {
             String[] suites = socket.getSupportedCipherSuites();
             System.out.println("\n***** SELECCIONE UNA CYPHER SUITE ***** \n");
 
-            for (int i = 1; i < suites.length+1; i++) {
-                System.out.println(i + ".-" + suites[i-1]);
+            for (int i = 1; i < suites.length + 1; i++) {
+                System.out.println(i + ".-" + suites[i - 1]);
             }
 
             int suite;
@@ -192,6 +193,8 @@ public class SSL_client {
                             System.out.println(SSL_client.FAIL_SIGN);
                         } else {
                             System.out.println("\n****** REGISTRO CORRECTO *******");
+                            //SHA512
+                            byte[] sha = getSHA512(documento);
                         }
 
                     } catch (KeyStoreException | NoSuchAlgorithmException | UnrecoverableEntryException | InvalidKeyException | SignatureException | CertificateException ex) {
@@ -213,6 +216,20 @@ public class SSL_client {
             Logger.getLogger(SSL_client.class.getName()).log(Level.SEVERE, null, ex);
         }
 
+    }
+      public static byte[] getSHA512(String docPath) throws FileNotFoundException, NoSuchAlgorithmException, IOException {
+        FileInputStream fmensaje = new FileInputStream(docPath);
+        MessageDigest md = null;
+        int longbloque;
+        byte bloque[] = new byte[1024];
+        long filesize = 0;
+        //SHA-512
+        md = MessageDigest.getInstance("SHA-512");
+        while ((longbloque = fmensaje.read(bloque)) > 0) {
+            filesize = filesize + longbloque;
+            md.update(bloque, 0, longbloque);
+        }
+        return md.digest();
     }
 
     public void mainMenu(BufferedReader bf) throws IOException {
