@@ -413,6 +413,7 @@ public class SSL_client {
         ks.load(new FileInputStream(keyStore + ".jce"), ks_password);
         
         
+
         KeyStore.PrivateKeyEntry pkEntry = (KeyStore.PrivateKeyEntry) ks.getEntry(entry_alias, new KeyStore.PasswordProtection(key_password));
         System.err.println(pkEntry);
         PrivateKey privateKey = pkEntry.getPrivateKey();
