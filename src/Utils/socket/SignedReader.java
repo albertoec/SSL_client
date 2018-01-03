@@ -10,7 +10,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.Socket;
-import javax.security.cert.X509Certificate;
 import java.util.ArrayList;
 import javax.security.cert.CertificateException;
 
@@ -36,26 +35,29 @@ public class SignedReader extends SocketReader {
      * Read a signed file from the input stream.
      *
      * @param dest_file the file to save the file. Probably a temporary file
-     * @return Array of object[4]. 1st - Byte[] la firma 2nd - String
-     * identificador 3rd - Nombre del fichero 4th - X509Certificate certificado
+     * @return Array of object[5]. 1st - String identificador 2nd - String
+     * nombreDoc 3rd - Boolean Confidencialidad 4th String Archivo a guardar-5th byte[] firma  6th - X509Certificate certificado
      * @throws IOException if an I/O error occurs.
      * @throws NullPointerException if dest_file is null
      * @throws javax.security.cert.CertificateException If the certificate can
      * not be created.
      */
     public Object[] ReadSignedFile(File dest_file) throws IOException, NullPointerException, CertificateException {
-        Object[] to_return = new Object[4];
-        Byte[] firma;
-        String id, nombre;
+        
+        Object[] to_return = new Object[6];
+        byte[] firma;
+        String id, nombreDoc;
         boolean confidencialidad = false;
-        X509Certificate certificado;
+        
         OutputStream out = new FileOutputStream(dest_file); //primero lee el fichero y lo guarda en la ruta especificada.
         long longitud = readLong();
         byte[] bytes = new byte[1024];
+        
         for (int i = 0; i < (longitud / 1024); i++) {
             in.read(bytes);
             out.write(bytes);
         }
+        
         int resto = (int) (longitud - ((longitud / 1024) * 1024));
         bytes = new byte[resto];
         in.read(bytes);
@@ -76,14 +78,14 @@ public class SignedReader extends SocketReader {
         for (Byte b : bytes) {
             alfirma.add(b);
         }
-        firma = new Byte[alfirma.size()]; //se pasa al array
+        firma = new byte[alfirma.size()]; //se pasa al array
         for (int index = 0; index < alfirma.size(); index++) {
             firma[index] = alfirma.get(index);
         }
         //se lee el identificador
         id = readString();
         //se lee el nombre del fichero
-        nombre = readString();
+        nombreDoc = readString();
         //se lee la confidencialidad
         int temp = read();
         if (temp == 1) {
@@ -91,13 +93,17 @@ public class SignedReader extends SocketReader {
         }
         //por último se lee la clave
         longitud = readLong();
-        byte[] preclave = new byte[(int) longitud];
-        read(preclave);
-        certificado = X509Certificate.getInstance(preclave);
-        to_return[0] = firma;
-        to_return[1] = id;
-        to_return[2] = nombre;
-        to_return[3] = confidencialidad;
+        byte[] certificado = new byte[(int) longitud];
+        read(certificado);
+        
+        
+        to_return[0] = id;
+        to_return[1] = nombreDoc;
+        to_return[2] = confidencialidad;
+        to_return[3] = dest_file.getName();
+        to_return[4] = firma;
+        to_return[5] = certificado;
+        
         return to_return;
     }
     
