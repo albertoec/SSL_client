@@ -57,6 +57,7 @@ public class SSL_client {
     public static final String FAIL_SIGN = "FIRMA INCORRECTA";
     public static final String OK = "OK";
     
+    @SuppressWarnings("empty-statement")
     public static void main(String[] args) {
         
         try {
@@ -199,6 +200,77 @@ public class SSL_client {
                     break;
                 
                 case "2":
+                    System.out.println("********************************************");
+                    System.out.println("*          RECUPERAR DOCUMENTO             *");
+                    System.out.println("********************************************");
+                    
+                    error = false;
+                    String id_registro = "";
+                    
+                    do{
+                        System.out.println("\nUso: \n"
+                                + "id_registro:           numero registro del documento que queremos recuperar \n");                    
+                    
+                        System.out.println("> ");
+                        String entrada = buffer.readLine();
+                        String[] partes = entrada.split("\\s+");
+                        
+                        if (partes.length == 1) {
+                            
+                            error = false;
+                            id_registro = partes[0].trim();
+
+                        } else {
+                            error = true;
+                        }                        
+                        
+                    }while(error);
+                    
+                    try{
+                    /*-------- ESCRIBIMOS EL CÓDIGO DE OPERACIÓN ---------*/
+                    SignedWriter signedWriter = new SignedWriter(socket);
+                    SignedReader socketReader = new SignedReader(socket);
+                    signedWriter.write(RECUPERAR);
+                    signedWriter.flush();
+                    
+                    if (socketReader.read() == NO_OPERATION) {
+                        System.out.println("Operación no operativa en el servidor");
+                        System.exit(0);
+                    }
+                    
+                    cert = SSL_client.getCertificate(keyStore, keyStorePass, "clientkey");
+ 
+                    boolean sendOk = signedWriter.sendRecoveryRequest(id_registro, cert);
+                    
+                    if(!sendOk){
+                        
+                        System.out.println("Error enviando el identificador y el certificado");
+                        System.exit(0);
+                        
+                    }
+                    
+                    String resultadoOP = socketReader.readString();
+                    
+                    if (resultadoOP.equalsIgnoreCase(SSL_client.FAIL_CERT)) {
+                        System.out.println(SSL_client.FAIL_CERT);
+                    } else if (resultadoOP.equalsIgnoreCase(SSL_client.FAIL_SIGN)) {
+                        System.out.println(SSL_client.FAIL_SIGN);
+                    } else {
+                        System.out.println("\n****** REQUEST CORRECTO *******");
+                    }
+                    
+                    } catch (FileNotFoundException ex) {
+                        Logger.getLogger(SSL_client.class.getName()).log(Level.SEVERE, null, ex);
+                    } catch (KeyStoreException ex) {
+                        Logger.getLogger(SSL_client.class.getName()).log(Level.SEVERE, null, ex);
+                    } catch (NoSuchAlgorithmException ex) {
+                        Logger.getLogger(SSL_client.class.getName()).log(Level.SEVERE, null, ex);
+                    } catch (UnrecoverableKeyException ex) {
+                        Logger.getLogger(SSL_client.class.getName()).log(Level.SEVERE, null, ex);
+                    } catch (CertificateException ex) {
+                        Logger.getLogger(SSL_client.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+ 
                     break;
                 
                 default:
@@ -319,6 +391,7 @@ public class SSL_client {
         ks = KeyStore.getInstance("JCEKS");
         
         ks.load(new FileInputStream(keyStore + ".jce"), ks_password);
+        
         
         KeyStore.PrivateKeyEntry pkEntry = (KeyStore.PrivateKeyEntry) ks.getEntry(entry_alias, new KeyStore.PasswordProtection(key_password));
         System.err.println(pkEntry);

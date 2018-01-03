@@ -10,8 +10,11 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.Socket;
+import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -86,5 +89,29 @@ public class SignedWriter extends SocketWriter {
         } catch (Exception ex) {
             return false;
         }
+    }
+    
+    public boolean sendRecoveryRequest(String id_registro, X509Certificate certificado){
+        
+        try {
+            
+            //Primero enviamos el identificador del documento que queremos recuperar
+            writeString(id_registro);
+            flush();
+            
+            //Después enviamos el certificado del cliente
+            byte[] cert = certificado.getEncoded();
+            writeLong(cert.length);
+            write(cert);
+            flush();
+            
+            return true;
+            
+        } catch (IOException ex) {
+            return false;
+        } catch (CertificateEncodingException ex) {
+            return false;
+        }
+        
     }
 }
