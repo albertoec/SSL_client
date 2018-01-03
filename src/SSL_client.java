@@ -56,7 +56,6 @@ public class SSL_client {
     public static final String FAIL_SIGN = "FIRMA INCORRECTA";
     public static final String OK = "OK";
     
-    @SuppressWarnings("empty-statement")
     public static void main(String[] args) {
 
         try {
@@ -183,20 +182,20 @@ public class SSL_client {
                             System.out.println("Operación no operativa en el servidor");
                             System.exit(0);
                         }
-                        System.out.println("aiusduiashduiasuda");
+                  
                         System.out.println(cert.getIssuerDN().getName());
                         signedWriter.SendSignedFile(id_propietario, nombreDoc, confidencialidad, documento, firma, cert);
 
                         String resultadoOP = socketReader.readString();
-                        if (resultadoOP.equalsIgnoreCase(SSL_client.FAIL_CERT)) {
-                            System.out.println(SSL_client.FAIL_CERT);
-                        } else if (resultadoOP.equalsIgnoreCase(SSL_client.FAIL_SIGN)) {
-                            System.out.println(SSL_client.FAIL_SIGN);
-                        } else {
+                        if (resultadoOP.equalsIgnoreCase(SSL_client.OK)) {
                             System.out.println("\n****** REGISTRO CORRECTO *******");
-                            //SHA512
+                            //SHASystem.out.println("aiusduiashduiasuda");512
                             byte[] sha = getSHA512(documento);
+                           
+                        }else{
+                        	System.out.println(resultadoOP);
                         }
+
 
                     } catch (KeyStoreException | NoSuchAlgorithmException | UnrecoverableEntryException | InvalidKeyException | SignatureException | CertificateException ex) {
                         Logger.getLogger(SSL_client.class.getName()).log(Level.SEVERE, null, ex);
