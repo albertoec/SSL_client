@@ -294,8 +294,9 @@ public class SSL_client {
 
                             Object[] datos = socketReader.ReadRecoveryResponse(new File(ruta_temp));
 
-                            String destino = "Recibido/".concat("recibido_publico").concat(ruta_temp.replace("client_temp", ""));
-
+                            String destino = "Recibido/";
+                            String nombre_fichero = (String) datos[5];
+                            destino += nombre_fichero;
                             Files.move(new File(ruta_temp).toPath(), new File(destino).toPath(), StandardCopyOption.REPLACE_EXISTING);
 
                         } else {
@@ -322,7 +323,7 @@ public class SSL_client {
                             Long id_registro_leido = Long.parseLong((String) datos[1]);
                             String destino = "Recibido/";
                             String nombre_fichero = (String) datos[5];
-                            destino+=nombre_fichero;
+                            destino += nombre_fichero;
                             Files.move(new File(ruta_temp).toPath(), new File(destino).toPath(), StandardCopyOption.REPLACE_EXISTING);
 
                             byte[] firma_registrador = (byte[]) datos[3];

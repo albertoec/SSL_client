@@ -84,7 +84,7 @@ public class SignedWriter extends SocketWriter {
             flush();
             return true;
 
-        } catch (Exception ex) {
+        } catch (IOException | CertificateEncodingException ex) {
             return false;
         }
     }
