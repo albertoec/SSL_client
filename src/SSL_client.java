@@ -25,11 +25,15 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
 import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.PublicKey;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Enumeration;
 
 /*
  * To change this license header, choose License Headers in Project Properties.
@@ -261,7 +265,7 @@ public class SSL_client {
                             System.exit(0);
                         }
 
-                        cert = SSL_client.getCertificate(keyStore, keyStorePass, clientCN + "-auth-" + tipoClave);
+                        cert = SSL_client.getCertificate(keyStore, keyStorePass, "clientkey");
 
                         boolean sendOk = signedWriter.sendRecoveryRequest(id_registro, cert);
 
@@ -271,16 +275,78 @@ public class SSL_client {
                             System.exit(0);
 
                         }
-
+                        
+                        String documentStatus = socketReader.readString();
+                        
+                        if(documentStatus.equals("DOCUMENTO INEXISTENTE")){
+                            System.out.println(documentStatus);
+                            System.exit(0);
+                        }
+                        
+                        String confidencial = socketReader.readString();
+                        
+                        System.out.println(confidencial);
+                        
+                        if(confidencial.equals("PUBLICO")){
+                        
+                        String ruta_temp = getRutaTemporal();
+                        
+                        Object[] datos = socketReader.ReadRecoveryResponse(new File(ruta_temp));       
+                        
+                        String destino = "Recibido/".concat("recibido_publico").concat(ruta_temp.replace("client_temp", "")) ;
+                        
+                        Files.move(new File(ruta_temp).toPath(), new File(destino).toPath(), StandardCopyOption.REPLACE_EXISTING);
+                        
+                        }else{
+                            
                         String resultadoOP = socketReader.readString();
-
                         if (resultadoOP.equalsIgnoreCase(SSL_client.FAIL_CERT)) {
                             System.out.println(SSL_client.FAIL_CERT);
                         } else if (resultadoOP.equalsIgnoreCase(SSL_client.FAIL_SIGN)) {
                             System.out.println(SSL_client.FAIL_SIGN);
                         } else {
-                            System.out.println("\n****** REQUEST CORRECTO *******");
+                            System.out.println("\n****** CERTIFICADO CORRECTO *******");
                         }
+                            
+                            String acceso = socketReader.readString();
+
+                            if(acceso.equals("ACCESO NO PERMITIDO")){
+                                System.out.println(acceso);
+                                System.exit(0);
+                            }else{
+                                System.out.println(acceso);
+                            }
+                            
+                        String ruta_temp = getRutaTemporal();
+                        
+                        Object[] datos = socketReader.ReadRecoveryResponse(new File(ruta_temp));       
+                        
+                        String destino = "Recibido/".concat("recibido_privado").concat(ruta_temp.replace("client_temp", ""));
+                        
+                        Files.move(new File(ruta_temp).toPath(), new File(destino).toPath(), StandardCopyOption.REPLACE_EXISTING);
+                            
+                        byte[] firma_registrador = (byte[]) datos[3];    
+                        byte[] cert_server = (byte[]) datos[4];
+                        
+                        if(!SSL_client.verifyCert(cert_server)){
+                            System.out.println("CERTIFICADO SERVIDOR NO VALIDO");
+                        }else{
+                            System.out.println("CERTIFICADO SERVIDOR CORRECTO");
+                        }
+                        
+                        if(!SSL_client.verify(destino,firma_registrador)){
+                            System.out.println("FALLO DE FIRMA DEL REGISTRADOR");
+                        }else{
+                            System.out.println("FIRMA DEL REGISTRADOR CORRECTA");
+                        }
+                        
+                        if(!SSL_client.getSHA512("documento.txt").equals(SSL_client.getSHA512(destino))){
+                            System.out.println("DOCUMENTO ALTERADO POR EL REGISTRADOR");
+                        }
+                        
+                        }
+
+
 
                     } catch (FileNotFoundException ex) {
                         Logger.getLogger(SSL_client.class.getName()).log(Level.SEVERE, null, ex);
@@ -292,6 +358,8 @@ public class SSL_client {
                         Logger.getLogger(SSL_client.class.getName()).log(Level.SEVERE, null, ex);
                     } catch (CertificateException ex) {
                         Logger.getLogger(SSL_client.class.getName()).log(Level.SEVERE, null, ex);
+                    } catch (Exception ex) {
+                         Logger.getLogger(SSL_client.class.getName()).log(Level.SEVERE, null, ex);
                     }
 
                     break;
@@ -557,72 +625,133 @@ public class SSL_client {
 
     }
 
-    private static boolean verify(String docPath, byte[] firma, String entry_alias) throws FileNotFoundException, CertificateException, InvalidKeyException, SignatureException, NoSuchAlgorithmException, IOException, KeyStoreException {
+    public static boolean verify(String docPath, byte[] firma) throws FileNotFoundException, CertificateException,
+			InvalidKeyException, SignatureException, NoSuchAlgorithmException, IOException, KeyStoreException {
 
-        /**
-         * *****************************************************************
-         * Verificacion
-         * ****************************************************************
-         */
-        System.out.println("************************************* ");
-        System.out.println("        VERIFICACION                  ");
-        System.out.println("************************************* ");
+		/**
+		 * *****************************************************************
+		 * Verificacion
+		 * ****************************************************************
+		 */
+		System.out.println("************************************* ");
+		System.out.println("        VERIFICACION                  ");
+		System.out.println("************************************* ");
 
-        FileInputStream fmensajeV = new FileInputStream(docPath);
-        byte bloque[] = new byte[1024];
-        long filesize = 0;
-        int longbloque;
+		byte bloque[] = new byte[1024];
+		long filesize = 0;
+		int longbloque;
 
-        KeyStore ks;
-        char[] ks_password = keyStorePass.toCharArray();
-        char[] key_password = keyStorePass.toCharArray();
+		KeyStore ks;
+		char[] ks_password = trustStorePass.toCharArray();
 
-        ks = KeyStore.getInstance("JCEKS");
-        ks.load(new FileInputStream(keyStore + ".jce"), ks_password);
+		ks = KeyStore.getInstance("JCEKS");
+		ks.load(new FileInputStream(trustStore + ".jce"), ks_password);
 
-        // Obtener la clave publica del keystore
-        PublicKey publicKey = ks.getCertificate(entry_alias).getPublicKey();
+		Enumeration<String> aliases = ks.aliases();
+		System.out.println((String) aliases.nextElement());
+		while (aliases.hasMoreElements()) {
 
-        System.out.println("*** CLAVE PUBLICA ***");
-        System.out.println(publicKey);
+			FileInputStream fmensajeV = new FileInputStream(docPath);
 
-        // Obtener el usuario del Certificado tomado del KeyStore.
-        //   Hay que traducir el formato de certificado del formato del keyStore
-        //	 al formato X.509. Para eso se usa un CertificateFactory.
-        byte[] certificadoRaw = ks.getCertificate(entry_alias).getEncoded();
-        ByteArrayInputStream inStream = null;
-        inStream = new ByteArrayInputStream(certificadoRaw);
+			String alias = aliases.nextElement();
 
-        CertificateFactory cf = CertificateFactory.getInstance("X.509");
-        X509Certificate cert = (X509Certificate) cf.generateCertificate(inStream);
+			// Obtener la clave publica del keystore
+			PublicKey publicKey = ks.getCertificate(alias).getPublicKey();
 
-        // Creamos un objeto para verificar, pasandole el algoritmo leido del certificado.
-        Signature verifier = Signature.getInstance(cert.getSigAlgName());
+			System.out.println("*** CLAVE PUBLICA ***");
+			System.out.println(publicKey);
 
-        // Inicializamos el objeto para verificar
-        verifier.initVerify(publicKey);
+			// Obtener el usuario del Certificado tomado del KeyStore.
+			// Hay que traducir el formato de certificado del formato del
+			// keyStore
+			// al formato X.509. Para eso se usa un CertificateFactory.
+			byte[] certificadoRaw = ks.getCertificate(alias).getEncoded();
+			ByteArrayInputStream inStream;
+			inStream = new ByteArrayInputStream(certificadoRaw);
 
-        while ((longbloque = fmensajeV.read(bloque)) > 0) {
-            filesize = filesize + longbloque;
-            verifier.update(bloque, 0, longbloque);
-        }
+			CertificateFactory cf = CertificateFactory.getInstance("X.509");
+			X509Certificate cert = (X509Certificate) cf.generateCertificate(inStream);
 
-        boolean resultado = false;
+			// Creamos un objeto para verificar, pasandole el algoritmo leido
+			// del certificado.
+			Signature verifier = Signature.getInstance(cert.getSigAlgName());
+			System.out.println(cert.getSigAlgName());
+			// Inicializamos el objeto para verificar
+			verifier.initVerify(publicKey);
 
-        resultado = verifier.verify(firma);
+			while ((longbloque = fmensajeV.read(bloque)) > 0) {
+				filesize = filesize + longbloque;
+				verifier.update(bloque, 0, longbloque);
+			}
 
-        System.out.println();
-        if (resultado == true) {
-            System.out.println("Verificacion correcta de la Firma");
+			boolean resultado;
+			System.out.println((String) aliases.nextElement());
+			try{
+                        resultado = verifier.verify(firma);
+                        }catch(Exception e){
+                        resultado=false;
+                        }
+			System.out.println();
+			if (resultado == true) {
+				System.out.print("Verificacion correcta de la Firma");
 
-        } else {
-            System.out.println("Fallo de verificacion de firma");
-            return false;
-        }
+				return true;
 
-        fmensajeV.close();
-        return true;
-    }
+			}
+
+			fmensajeV.close();
+
+		}
+		System.out.print("Fallo de verificacion de firma");
+		return false;
+	}
+    
+    	public static boolean verifyCert(byte[] certificado) throws Exception {
+
+		KeyStore ks;
+		ByteArrayInputStream inStream;
+		PublicKey publicKey;
+		char[] ks_password;
+
+		ks_password = trustStorePass.toCharArray();
+		ks = KeyStore.getInstance("JCEKS");
+		ks.load(new FileInputStream(RAIZ + trustStore + ".jce"), ks_password);
+
+		// Obtener el certificado de un array de bytes
+		// Obtener la clave publica del keystore
+		// Obtener el certificado de un array de bytes
+		inStream = new ByteArrayInputStream(certificado);
+		CertificateFactory cf = CertificateFactory.getInstance("X.509");
+		X509Certificate cert = (X509Certificate) cf.generateCertificate(inStream);
+
+		// Listamos los alias y después los recorremos en busca de un
+		// certificado que valga
+		Enumeration<String> aliases = ks.aliases();
+		while (aliases.hasMoreElements()) {
+
+			// Obtener la clave publica del keystore
+			publicKey = ks.getCertificate(aliases.nextElement()).getPublicKey();
+
+			try {
+
+				cert.verify(publicKey);
+				System.out.println("\nCertificado correcto");
+
+				return true;
+
+			} catch (InvalidKeyException e) {
+
+			} catch (SignatureException ex) {
+
+			} catch (Exception ex) {
+				// capturar el resto de excepciones posibles para que no se
+				// cuelgue el bucle por no haber capturado la excepcion
+			}
+		}
+
+		System.out.println("Certificado incorrecto");
+		return false;
+	}
 
     private static X509Certificate getCertificate(String keyStore, String keyStorePwd, String aliasCertificate) throws FileNotFoundException, KeyStoreException, IOException, NoSuchAlgorithmException, UnrecoverableKeyException, CertificateException {
 
@@ -639,5 +768,19 @@ public class SSL_client {
 //        CertificateFactory cf = CertificateFactory.getInstance("X.509");
 //        cert = (X509Certificate) cf.generateCertificate(inStream);
         return cert;
+    }
+    
+            /**
+     * Obtiene una ruta temporal no utilizada
+     *
+     * @return Ruta temporal
+     */
+    private static String getRutaTemporal() {
+        String temp = "client_temp";
+        long i = 0L;
+        while (new File(temp + i).exists()) {
+            i++;
+        }
+        return temp + i;
     }
 }

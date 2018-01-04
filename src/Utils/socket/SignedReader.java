@@ -107,26 +107,70 @@ public class SignedReader extends SocketReader {
         return to_return;
     }
 
-    public Object[] ReadRecoveryRequest() throws IOException {
-
+    public Object[] ReadRecoveryRequest() throws IOException{
+        
         Object[] to_return = new Object[2];
-
+        
         //Primero leemos el id del documento que se nos pide recuperar
         String id = readString();
-
+        
         //Leemos el certificado
+        
         long longitud = readLong();
-
+        
         byte[] cert = new byte[(int) longitud];
-
+        
         read(cert);
-
+        
         to_return[0] = id;
         to_return[1] = cert;
-
+        
         return to_return;
-
+        
     }
+     
+     public Object[] ReadRecoveryResponse(File dest_file) throws IOException{
+         
+         Object[] to_return = new Object[5];
+         
+         long error = readLong();
+         
+         String id_registro = readString();
+         
+         String sello = readString();
+         
+        OutputStream out = new FileOutputStream(dest_file); //primero lee el fichero y lo guarda en la ruta especificada.
+        long longitud = readLong();
+        byte[] bytes = new byte[1024];
+        
+        for (int i = 0; i < (longitud / 1024); i++) {
+            in.read(bytes);
+            out.write(bytes);
+        }
+        
+        int resto = (int) (longitud - ((longitud / 1024) * 1024));
+        bytes = new byte[resto];
+        in.read(bytes);
+        out.write(bytes);
+        out.close();
+        //ha terminado de leerlo y cierra el fichero en el que lo almacena.
+        
+        longitud = readLong();
+        byte[] firma = new byte[(int) longitud];
+        read(firma);
+        
+        longitud = readLong();
+        byte[] certificado = new byte[(int) longitud];
+        read(certificado);
+        
+        to_return[0] = error;
+        to_return[1] = id_registro;
+        to_return[2] = sello;
+        to_return[3] = firma;
+        to_return[4] = certificado;
+ 
+         return to_return;
+     }
 
     public ArrayList<Object[]> ReadListDocumentsRequest() throws IOException {
 

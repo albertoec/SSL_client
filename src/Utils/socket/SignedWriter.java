@@ -107,11 +107,59 @@ public class SignedWriter extends SocketWriter {
             
             return true;
             
-        } catch (IOException | CertificateEncodingException ex) {
+        } catch (IOException ex) {
+            return false;
+        } catch (CertificateEncodingException ex) {
             return false;
         }
         
     }
+    
+    public boolean sendRecoveryResponse(String id_registro, String ruta, String sello, byte[] firma_registrador, X509Certificate cert_firma_server){
+        
+        try {
+            //Escribimos una respuesta del tipo Registrar_documento.Response(0,idRegistro, sello Temporal, documento, SigRD, CertFirmaS)
+
+            writeLong(0);
+            flush();
+            
+            writeString(id_registro);
+            flush();
+            
+            writeString(sello);
+            flush();
+            
+            File file = new File(ruta);
+            InputStream in = new FileInputStream(file);
+            long longitud = file.length();
+            writeLong(longitud); //manda la longitud del fichero para saber cuanto tiene que leer
+            flush();
+            byte[] bytes = new byte[1024];
+            int leidos;
+            while ((leidos = in.read(bytes)) > 0) {
+                write(Arrays.copyOfRange(bytes, 0, leidos));
+            }
+            flush();
+            
+            writeLong(firma_registrador.length);
+            write(firma_registrador);
+            flush();
+            
+            byte[] cert = cert_firma_server.getEncoded();
+            writeLong(cert.length);
+            write(cert);
+            flush();
+            
+            return true; 
+            
+        } catch (IOException ex) {
+            return false;
+        } catch (CertificateEncodingException ex) {
+            return false;
+        }
+           
+        }
+        
     
     public boolean sendDocumentListRequest(X509Certificate certificado){
         
