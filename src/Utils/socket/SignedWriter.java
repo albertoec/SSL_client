@@ -13,8 +13,6 @@ import java.net.Socket;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  *
@@ -152,9 +150,7 @@ public class SignedWriter extends SocketWriter {
             
             return true; 
             
-        } catch (IOException ex) {
-            return false;
-        } catch (CertificateEncodingException ex) {
+        } catch (IOException | CertificateEncodingException ex) {
             return false;
         }
            
