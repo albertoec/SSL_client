@@ -265,7 +265,7 @@ public class SSL_client {
                             System.exit(0);
                         }
 
-                        cert = SSL_client.getCertificate(keyStore, keyStorePass, "clientkey");
+                        cert = SSL_client.getCertificate(keyStore, keyStorePass, clientCN + "-auth-" + tipoClave);
 
                         boolean sendOk = signedWriter.sendRecoveryRequest(id_registro, cert);
 
