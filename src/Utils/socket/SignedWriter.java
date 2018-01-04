@@ -107,11 +107,27 @@ public class SignedWriter extends SocketWriter {
             
             return true;
             
-        } catch (IOException ex) {
-            return false;
-        } catch (CertificateEncodingException ex) {
+        } catch (IOException | CertificateEncodingException ex) {
             return false;
         }
         
+    }
+    
+    public boolean sendDocumentListRequest(X509Certificate certificado){
+        
+        try {
+            
+            //Enviamos el certificado del cliente
+            
+            byte[] cert = certificado.getEncoded();
+            writeLong(cert.length);
+            write(cert);
+            flush();
+            
+            return true;
+            
+        } catch (IOException | CertificateEncodingException ex) {
+            return false;
+        }
     }
 }

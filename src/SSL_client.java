@@ -29,6 +29,7 @@ import java.security.MessageDigest;
 import java.security.PublicKey;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 
 /*
  * To change this license header, choose License Headers in Project Properties.
@@ -45,11 +46,12 @@ public class SSL_client {
     private static final int PORT = 8080;
     private static final String RAIZ = "";
     private static String keyStore, trustStore;
-    private static String keyStorePass, trustStorePass;
+    private static String keyStorePass, trustStorePass, clientCN, tipoClave, ipServidor;
 
     public static final int NO_OPERATION = 0;
     public static final int REGISTRAR = 1;
     public static final int RECUPERAR = 2;
+    public static final int LISTAR = 3;
     public static final int READY = 255;
 
     public static final String FAIL_CERT = "CERTIFICADO INCORRECTO";
@@ -76,16 +78,28 @@ public class SSL_client {
 
             System.out.print("Introduzca la contraseña del keyStore: ");
             System.out.print("> ");
-            keyStorePass = buffer.readLine();
+            keyStorePass = buffer.readLine().trim();
 
             System.out.print("Introduzca la contraseña del trustStore: ");
             System.out.print("> ");
-            trustStorePass = buffer.readLine();
+            trustStorePass = buffer.readLine().trim();
+
+            System.out.print("Introduzca su identificador (email@example.com): ");
+            System.out.print("> ");
+            clientCN = buffer.readLine().trim();
+
+            System.out.print("Introduzca el tipo de clave empleado (RSA/DSA): ");
+            System.out.print("> ");
+            tipoClave = buffer.readLine().toLowerCase();
+            
+             System.out.print("Introduzca la dirección del servidor: ");
+            System.out.print("> ");
+            ipServidor = buffer.readLine().trim();
 
             new SSL_client().definirKeyStores();
 
             SSLSocketFactory socketFactory = (SSLSocketFactory) SSL_client.getServerSocketFactory("TLS");
-            SSLSocket socket = (SSLSocket) socketFactory.createSocket(HOST, PORT);
+            SSLSocket socket = (SSLSocket) socketFactory.createSocket(ipServidor, PORT);
 
             String[] suites = socket.getSupportedCipherSuites();
             System.out.println("\n***** SELECCIONE UNA CYPHER SUITE ***** \n");
@@ -169,8 +183,8 @@ public class SSL_client {
 
                     try {
 
-                        firma = SSL_client.sign(documento, keyStore, "client_firma");
-                        cert = SSL_client.getCertificate(keyStore, keyStorePass, "client_firma");
+                        firma = SSL_client.sign(documento, keyStore, clientCN + "-firma-" + tipoClave);
+                        cert = SSL_client.getCertificate(keyStore, keyStorePass, clientCN + "-firma-" + tipoClave);
 
                         /*-------- ESCRIBIMOS EL CÓDIGO DE OPERACIÓN ---------*/
                         SignedWriter signedWriter = new SignedWriter(socket);
@@ -247,7 +261,7 @@ public class SSL_client {
                             System.exit(0);
                         }
 
-                        cert = SSL_client.getCertificate(keyStore, keyStorePass, "clientkey");
+                        cert = SSL_client.getCertificate(keyStore, keyStorePass, clientCN + "-auth-" + tipoClave);
 
                         boolean sendOk = signedWriter.sendRecoveryRequest(id_registro, cert);
 
@@ -266,6 +280,92 @@ public class SSL_client {
                             System.out.println(SSL_client.FAIL_SIGN);
                         } else {
                             System.out.println("\n****** REQUEST CORRECTO *******");
+                        }
+
+                    } catch (FileNotFoundException ex) {
+                        Logger.getLogger(SSL_client.class.getName()).log(Level.SEVERE, null, ex);
+                    } catch (KeyStoreException ex) {
+                        Logger.getLogger(SSL_client.class.getName()).log(Level.SEVERE, null, ex);
+                    } catch (NoSuchAlgorithmException ex) {
+                        Logger.getLogger(SSL_client.class.getName()).log(Level.SEVERE, null, ex);
+                    } catch (UnrecoverableKeyException ex) {
+                        Logger.getLogger(SSL_client.class.getName()).log(Level.SEVERE, null, ex);
+                    } catch (CertificateException ex) {
+                        Logger.getLogger(SSL_client.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+
+                    break;
+
+                case "3":
+
+                    System.out.println("********************************************");
+                    System.out.println("*          LISTAR DOCUMENTOS               *");
+                    System.out.println("********************************************");
+
+                    try {
+
+                        /*-------- ESCRIBIMOS EL CÓDIGO DE OPERACIÓN ---------*/
+                        SignedWriter signedWriter = new SignedWriter(socket);
+                        SignedReader signedReader = new SignedReader(socket);
+                        signedWriter.write(LISTAR);
+                        signedWriter.flush();
+
+                        if (signedReader.read() == NO_OPERATION) {
+                            System.out.println("Operación no operativa en el servidor");
+                            System.exit(0);
+                        }
+
+                        System.out.println(clientCN + "-auth-" + tipoClave);
+                        cert = SSL_client.getCertificate(keyStore, keyStorePass, clientCN + "-auth-" + tipoClave);
+
+                        boolean sendOk = signedWriter.sendDocumentListRequest(cert);
+
+                        if (!sendOk) {
+
+                            System.out.println("Error el certificado de autenticación del cliente");
+                            System.exit(0);
+
+                        }
+
+                        String resultadoOP = signedReader.readString();
+
+                        if (resultadoOP.equalsIgnoreCase(SSL_client.FAIL_CERT)) {
+                            System.out.println(SSL_client.FAIL_CERT);
+                        } else {
+                            System.out.println("\n****** LISTADO CORRECTO *******");
+                        }
+
+                        ArrayList<Object[]> confidenciales = signedReader.ReadListDocumentsRequest();
+                        ArrayList<Object[]> noConfidenciales = signedReader.ReadListDocumentsRequest();
+
+                        if (confidenciales != null) {
+                            System.out.println("\n\n\n\n***** DOCUMENTOS PRIVADOS *****\n"
+                                        + "***************************************");
+                            for (int i = 0; i < confidenciales.size(); i++) {                     
+                                System.out.println("DOCUMENTO Nº" + (i + 1));
+                                System.out.println("idRegistro:      " + (long) confidenciales.get(i)[0]);
+                                System.out.println("idPropietario:   " + (String) confidenciales.get(i)[1]);
+                                System.out.println("nombreDoc:       " + (String) confidenciales.get(i)[2]);
+                                System.out.println("selloTemporal:   " + (String) confidenciales.get(i)[3]);
+                                System.out.println("***************************************");
+                            }
+                        } else {
+                            System.out.println("No tiene ningún documento registrado de forma confidencial");
+                        }
+
+                        if (noConfidenciales != null) {
+                            System.out.println("\n\n\n\n***** DOCUMENTOS PÚBLICOS *****\n"
+                                    + "***************************************");
+                            for (int i = 0; i < noConfidenciales.size(); i++) {
+                                System.out.println("DOCUMENTO Nº" + (i + 1));
+                                System.out.println("idRegistro:      " + (long) noConfidenciales.get(i)[0]);
+                                System.out.println("idPropietario:   " + (String) noConfidenciales.get(i)[1]);
+                                System.out.println("nombreDoc:       " + (String) noConfidenciales.get(i)[2]);
+                                System.out.println("selloTemporal:   " + (String) noConfidenciales.get(i)[3]);
+                                System.out.println("***************************************");
+                            }
+                        } else {
+                            System.out.println("No tiene ningún documento registrado de forma pública");
                         }
 
                     } catch (FileNotFoundException ex) {
@@ -316,8 +416,8 @@ public class SSL_client {
 
         System.out.println("1) Registrar documento");
         System.out.println("2) Recuperar documento");
-        System.out.println("3) Salir");
-
+        System.out.println("3) Listar documentos");
+        System.out.println("4) Salir");
     }
 
     public void definirKeyStores() {
@@ -532,6 +632,12 @@ public class SSL_client {
 
         cert = (X509Certificate) keystore.getCertificate(aliasCertificate);
 
+//        byte[] certificadoRaw = keystore.getCertificate(aliasCertificate).getEncoded();
+//        ByteArrayInputStream inStream = null;
+//        inStream = new ByteArrayInputStream(certificadoRaw);
+//
+//        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+//        cert = (X509Certificate) cf.generateCertificate(inStream);
         return cert;
     }
 }
