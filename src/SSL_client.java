@@ -320,8 +320,9 @@ public class SSL_client {
                             Object[] datos = socketReader.ReadRecoveryResponse(new File(ruta_temp));
                             String sello = (String) datos[2];
                             Long id_registro_leido = Long.parseLong((String) datos[1]);
-                            String destino = "Recibido/".concat("recibido_privado").concat(ruta_temp.replace("client_temp", ""));
-
+                            String destino = "Recibido/";
+                            String nombre_fichero = (String) datos[5];
+                            destino+=nombre_fichero;
                             Files.move(new File(ruta_temp).toPath(), new File(destino).toPath(), StandardCopyOption.REPLACE_EXISTING);
 
                             byte[] firma_registrador = (byte[]) datos[3];
@@ -333,7 +334,7 @@ public class SSL_client {
                                 System.out.println("CERTIFICADO SERVIDOR CORRECTO");
                             }
                             byte[] firma_propia = sign(destino, keyStore, clientCN + "-firma-" + tipoClave);
-                            if (!SSL_client.verify_recuperacion(cert_server,destino, firma_registrador, sello, id_registro_leido, firma_propia)) {
+                            if (!SSL_client.verify_recuperacion(cert_server, destino, firma_registrador, sello, id_registro_leido, firma_propia)) {
                                 System.out.println("FALLO DE FIRMA DEL REGISTRADOR");
                             } else {
                                 System.out.println("FIRMA DEL REGISTRADOR CORRECTA");
@@ -731,7 +732,7 @@ public class SSL_client {
         //System.out.println(cert.getSigAlgName());  saca MD5withRSA, pero usamos el otro
         // Inicializamos el objeto para verificar
         verifier.initVerify(publicKey);
-        
+
         ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
         buffer.putLong(idRegistro);
         verifier.update(buffer.array());
@@ -741,8 +742,8 @@ public class SSL_client {
             verifier.update(bloque, 0, longbloque);
         }
         verifier.update(firma_propia);
-        
-        boolean resultado=true;
+
+        boolean resultado = true;
         try {
             resultado = verifier.verify(firma);
         } catch (Exception e) {
@@ -750,7 +751,6 @@ public class SSL_client {
         }
         if (resultado == true) {
             System.out.print("Verificacion correcta de la Firma");
-
 
         }
 
