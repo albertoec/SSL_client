@@ -11,6 +11,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.security.cert.CertificateException;
 
 /**
@@ -107,29 +109,28 @@ public class SignedReader extends SocketReader {
         return to_return;
     }
 
-    public Object[] ReadRecoveryRequest() throws IOException{
-        
+    public Object[] ReadRecoveryRequest() throws IOException {
+
         Object[] to_return = new Object[2];
-        
+
         //Primero leemos el id del documento que se nos pide recuperar
         String id = readString();
-        
+
         //Leemos el certificado
-        
         long longitud = readLong();
-        
+
         byte[] cert = new byte[(int) longitud];
-        
+
         read(cert);
-        
+
         to_return[0] = id;
         to_return[1] = cert;
-        
+
         return to_return;
-        
+
     }
-     
-     public Object[] ReadRecoveryResponse(File dest_file) throws IOException {
+
+    public Object[] ReadRecoveryResponse(File dest_file) throws IOException {
 
         Object[] to_return = new Object[6];
 
@@ -173,6 +174,35 @@ public class SignedReader extends SocketReader {
         return to_return;
     }
 
+    /**
+     * Lee los datos que le manda el servidor como respuesta al registro del
+     * documento.
+     *
+     * @return [0] => (Long) idRegistro. [1] => (String) selloTemporal. [2] =>
+     * (byte[]) sigRD. [3] => (byte[]) certRAW. nullen caso de haber algún
+     * problema.
+     */
+    public Object[] readRegisterResponse() {
+        try {
+            Object[] ret = new Object[4];
+            readLong();
+            Long idRegistro = readLong();
+            String sello = readString();
+            byte[] sigRD = new byte[(int) readLong()];
+            read(sigRD);
+            byte[] certRAW = new byte[(int) readLong()];
+            read(certRAW);
+            ret[0] = idRegistro;
+            ret[1] = sello;
+            ret[2] = sigRD;
+            ret[3] = certRAW;
+            return ret;
+        } catch (IOException ex) {
+
+        }
+        return null;
+    }
+
     public ArrayList<Object[]> ReadListDocumentsRequest() throws IOException {
 
         /*comprobamos longitud del array enviado*/
@@ -196,11 +226,11 @@ public class SignedReader extends SocketReader {
             System.out.println("Leido String");
 
             list.add(objects);
-            
+
             int j = read();
             System.out.println(j);
             if (j == 255) {
-               break;
+                break;
             }
             System.out.println("No es el ultimo");
         }
