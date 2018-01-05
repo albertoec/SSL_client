@@ -1,4 +1,5 @@
 
+import Utils.data.CSVHandler;
 import Utils.socket.SignedReader;
 import Utils.socket.SignedWriter;
 import java.io.BufferedReader;
@@ -180,7 +181,7 @@ public class SSL_client {
 
                     } while (error);
 
-                    byte[] firma = null;
+                    byte[] sigRD = null;
                     X509Certificate cert = null;
                     boolean confidencialidad = false;
 
@@ -188,7 +189,7 @@ public class SSL_client {
 
                     try {
 
-                        firma = SSL_client.sign(documento, keyStore, clientCN + "-firma-" + tipoClave);
+                        sigRD = SSL_client.sign(documento, keyStore, clientCN + "-firma-" + tipoClave);
                         cert = SSL_client.getCertificate(keyStore, keyStorePass, clientCN + "-firma-" + tipoClave);
 
                         /*-------- ESCRIBIMOS EL CÓDIGO DE OPERACIÓN ---------*/
@@ -203,17 +204,33 @@ public class SSL_client {
                         }
 
                         System.out.println(cert.getIssuerDN().getName());
-                        signedWriter.SendSignedFile(id_propietario, nombreDoc, confidencialidad, documento, firma, cert);
+                        signedWriter.SendSignedFile(id_propietario, nombreDoc, confidencialidad, documento, sigRD, cert);
 
                         String resultadoOP = socketReader.readString();
 
                         if (resultadoOP.equalsIgnoreCase(SSL_client.OK)) {
-
+                            Object[] obs = socketReader.readRegisterResponse();
+                            Long idRegistro = (Long) obs[0];
+                            String sello = (String) obs[1];
+                            byte[] sigRD_recuperada = (byte[]) obs[2];
+                            byte[] certRAW = (byte[]) obs[3];
+                            if (!verifyCert(certRAW)) {
+                                System.out.println("CERTIFICADO DE REGISTRADOR INCORRECTO");
+                                return;
+                            }
+                            if (!verify_sigRD(certRAW, documento, sigRD_recuperada, sello, idRegistro, sigRD)) {
+                                System.out.println("FIRMA INCORRECTA DEL REGISTRADOR");
+                                return;
+                            }
+                            if (!new CSVHandler().newEntry(idRegistro, getSHA512(documento))) {
+                                System.out.println("NO SE HA PODIDO ALMACENAR EL SHA512");
+                                return;
+                            }
                             System.out.println("\n****** REGISTRO CORRECTO *******");
                             System.out.println("Atención! A continuación se muestra el identificador de documento. Guardelo si desea recuperar en un futuro el docuento registrado!");
                             System.out.println("El ID de su registro es: ");
                             System.out.println("\n********************************************");
-                            System.out.println("*         " + socketReader.readLong() + "                                *");
+                            System.out.println("*         " + idRegistro + "                                *");
                             System.out.println("********************************************");
 
                         } else {
@@ -335,7 +352,7 @@ public class SSL_client {
                                 System.out.println("CERTIFICADO SERVIDOR CORRECTO");
                             }
                             byte[] firma_propia = sign(destino, keyStore, clientCN + "-firma-" + tipoClave);
-                            if (!SSL_client.verify_recuperacion(cert_server, destino, firma_registrador, sello, id_registro_leido, firma_propia)) {
+                            if (!SSL_client.verify_sigRD(cert_server, destino, firma_registrador, sello, id_registro_leido, firma_propia)) {
                                 System.out.println("FALLO DE FIRMA DEL REGISTRADOR");
                             } else {
                                 System.out.println("FIRMA DEL REGISTRADOR CORRECTA");
@@ -705,7 +722,7 @@ public class SSL_client {
         return false;
     }
 
-    public static boolean verify_recuperacion(byte[] certificadoRaw, String docPath, byte[] firma, String selloTemporal, Long idRegistro, byte[] firma_propia) throws FileNotFoundException, CertificateException,
+    public static boolean verify_sigRD(byte[] certificadoRaw, String docPath, byte[] firma, String selloTemporal, Long idRegistro, byte[] firma_propia) throws FileNotFoundException, CertificateException,
             InvalidKeyException, SignatureException, NoSuchAlgorithmException, IOException, KeyStoreException {
 
         /**
@@ -759,49 +776,51 @@ public class SSL_client {
         return resultado;
     }
 
-    public static boolean verifyCert(byte[] certificado) throws Exception {
+    public static boolean verifyCert(byte[] certificado) {
+        try {
+            KeyStore ks;
+            ByteArrayInputStream inStream;
+            PublicKey publicKey;
+            char[] ks_password;
 
-        KeyStore ks;
-        ByteArrayInputStream inStream;
-        PublicKey publicKey;
-        char[] ks_password;
+            ks_password = trustStorePass.toCharArray();
+            ks = KeyStore.getInstance("JCEKS");
+            ks.load(new FileInputStream(RAIZ + trustStore + ".jce"), ks_password);
 
-        ks_password = trustStorePass.toCharArray();
-        ks = KeyStore.getInstance("JCEKS");
-        ks.load(new FileInputStream(RAIZ + trustStore + ".jce"), ks_password);
-
-        // Obtener el certificado de un array de bytes
-        // Obtener la clave publica del keystore
-        // Obtener el certificado de un array de bytes
-        inStream = new ByteArrayInputStream(certificado);
-        CertificateFactory cf = CertificateFactory.getInstance("X.509");
-        X509Certificate cert = (X509Certificate) cf.generateCertificate(inStream);
-
-        // Listamos los alias y después los recorremos en busca de un
-        // certificado que valga
-        Enumeration<String> aliases = ks.aliases();
-        while (aliases.hasMoreElements()) {
-
+            // Obtener el certificado de un array de bytes
             // Obtener la clave publica del keystore
-            publicKey = ks.getCertificate(aliases.nextElement()).getPublicKey();
+            // Obtener el certificado de un array de bytes
+            inStream = new ByteArrayInputStream(certificado);
+            CertificateFactory cf = CertificateFactory.getInstance("X.509");
+            X509Certificate cert = (X509Certificate) cf.generateCertificate(inStream);
 
-            try {
+            // Listamos los alias y después los recorremos en busca de un
+            // certificado que valga
+            Enumeration<String> aliases = ks.aliases();
+            while (aliases.hasMoreElements()) {
 
-                cert.verify(publicKey);
-                System.out.println("\nCertificado correcto");
+                // Obtener la clave publica del keystore
+                publicKey = ks.getCertificate(aliases.nextElement()).getPublicKey();
 
-                return true;
+                try {
 
-            } catch (InvalidKeyException e) {
+                    cert.verify(publicKey);
+                    System.out.println("\nCertificado correcto");
 
-            } catch (SignatureException ex) {
+                    return true;
 
-            } catch (Exception ex) {
-                // capturar el resto de excepciones posibles para que no se
-                // cuelgue el bucle por no haber capturado la excepcion
+                } catch (InvalidKeyException e) {
+
+                } catch (SignatureException ex) {
+
+                } catch (Exception ex) {
+                    // capturar el resto de excepciones posibles para que no se
+                    // cuelgue el bucle por no haber capturado la excepcion
+                }
             }
-        }
+        } catch (Exception ex) {
 
+        }
         System.out.println("Certificado incorrecto");
         return false;
     }
