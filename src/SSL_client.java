@@ -36,6 +36,8 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.X509KeyManager;
 import javax.xml.bind.DatatypeConverter;
 
 /*
@@ -226,6 +228,7 @@ public class SSL_client {
                                 System.out.println("NO SE HA PODIDO ALMACENAR EL SHA512");
                                 return;
                             }
+                            new File(documento).delete();
                             System.out.println("\n****** REGISTRO CORRECTO *******");
                             System.out.println("Atención! A continuación se muestra el identificador de documento. Guardelo si desea recuperar en un futuro el docuento registrado!");
                             System.out.println("El ID de su registro es: ");
@@ -313,9 +316,18 @@ public class SSL_client {
 
                             String destino = "Recibido/";
                             String nombre_fichero = (String) datos[5];
+                            boolean error_recibiendo = false;
+                            if (!DatatypeConverter.printHexBinary(new CSVHandler().getSHA512(Long.parseLong(id_registro))).equals(DatatypeConverter.printHexBinary(SSL_client.getSHA512(ruta_temp)))) {
+                                System.out.println("DOCUMENTO ALTERADO POR EL REGISTRADOR");
+                                error_recibiendo = true;
+                            }
                             destino += nombre_fichero;
+                            if (error_recibiendo) {
+                                System.out.println("No se ha guardado el fichero.");
+                                new File(ruta_temp).delete();
+                            }
                             Files.move(new File(ruta_temp).toPath(), new File(destino).toPath(), StandardCopyOption.REPLACE_EXISTING);
-
+                            System.out.println("Se ha guardado el fichero en " + destino);
                         } else {
 
                             String resultadoOP = socketReader.readString();
@@ -341,27 +353,34 @@ public class SSL_client {
                             String destino = "Recibido/";
                             String nombre_fichero = (String) datos[5];
                             destino += nombre_fichero;
-                            Files.move(new File(ruta_temp).toPath(), new File(destino).toPath(), StandardCopyOption.REPLACE_EXISTING);
 
                             byte[] firma_registrador = (byte[]) datos[3];
                             byte[] cert_server = (byte[]) datos[4];
-
+                            boolean error_recibiendo = false;
                             if (!SSL_client.verifyCert(cert_server)) {
                                 System.out.println("CERTIFICADO SERVIDOR NO VALIDO");
+                                error_recibiendo = true;
                             } else {
                                 System.out.println("CERTIFICADO SERVIDOR CORRECTO");
                             }
-                            byte[] firma_propia = sign(destino, keyStore, clientCN + "-firma-" + tipoClave);
-                            if (!SSL_client.verify_sigRD(cert_server, destino, firma_registrador, sello, id_registro_leido, firma_propia)) {
+                            byte[] firma_propia = sign(ruta_temp, keyStore, clientCN + "-firma-" + tipoClave);
+                            if (!SSL_client.verify_sigRD(cert_server, ruta_temp, firma_registrador, sello, id_registro_leido, firma_propia)) {
                                 System.out.println("FALLO DE FIRMA DEL REGISTRADOR");
+                                error_recibiendo = true;
                             } else {
                                 System.out.println("FIRMA DEL REGISTRADOR CORRECTA");
                             }
 
-                            if (!DatatypeConverter.printHexBinary(SSL_client.getSHA512("documento.txt")).equals(DatatypeConverter.printHexBinary(SSL_client.getSHA512(destino)))) {
+                            if (!DatatypeConverter.printHexBinary(new CSVHandler().getSHA512(Long.parseLong(id_registro))).equals(DatatypeConverter.printHexBinary(SSL_client.getSHA512(ruta_temp)))) {
                                 System.out.println("DOCUMENTO ALTERADO POR EL REGISTRADOR");
+                                error_recibiendo = true;
                             }
-
+                            if (error_recibiendo) {
+                                System.out.println("No se ha guardado el fichero.");
+                                new File(ruta_temp).delete();
+                            }
+                            Files.move(new File(ruta_temp).toPath(), new File(destino).toPath(), StandardCopyOption.REPLACE_EXISTING);
+                            System.out.println("Se ha guardado el fichero en " + destino);
                         }
 
                     } catch (FileNotFoundException ex) {
@@ -421,12 +440,12 @@ public class SSL_client {
 
                         ArrayList<Object[]> confidenciales = signedReader.ReadListDocumentsRequest();
                         ArrayList<Object[]> noConfidenciales = signedReader.ReadListDocumentsRequest();
-
+                        int numero_doc = 1;
                         if (confidenciales != null) {
                             System.out.println("\n\n\n\n***** DOCUMENTOS PRIVADOS *****\n"
                                     + "***************************************");
                             for (int i = 0; i < confidenciales.size(); i++) {
-                                System.out.println("DOCUMENTO Nº" + (i + 1));
+                                System.out.println("DOCUMENTO Nº" + numero_doc++);
                                 System.out.println("idRegistro:      " + (long) confidenciales.get(i)[0]);
                                 System.out.println("idPropietario:   " + (String) confidenciales.get(i)[1]);
                                 System.out.println("nombreDoc:       " + (String) confidenciales.get(i)[2]);
@@ -441,7 +460,7 @@ public class SSL_client {
                             System.out.println("\n\n\n\n***** DOCUMENTOS PÚBLICOS *****\n"
                                     + "***************************************");
                             for (int i = 0; i < noConfidenciales.size(); i++) {
-                                System.out.println("DOCUMENTO Nº" + (i + 1));
+                                System.out.println("DOCUMENTO Nº" + numero_doc++);
                                 System.out.println("idRegistro:      " + (long) noConfidenciales.get(i)[0]);
                                 System.out.println("idPropietario:   " + (String) noConfidenciales.get(i)[1]);
                                 System.out.println("nombreDoc:       " + (String) noConfidenciales.get(i)[2]);
@@ -510,12 +529,12 @@ public class SSL_client {
         //System.setProperty("javax.net.debug", "all");
         // ----  Almacenes mios  -----------------------------
         // Almacen de claves
-        System.setProperty("javax.net.ssl.keyStore", RAIZ + keyStore + ".jce");
+        System.setProperty("javax.net.ssl.keyStore", RAIZ + keyStore);
         System.setProperty("javax.net.ssl.keyStoreType", "JCEKS");
         System.setProperty("javax.net.ssl.keyStorePassword", keyStorePass);
 
         // Almacen de confianza
-        System.setProperty("javax.net.ssl.trustStore", RAIZ + trustStore + ".jce");
+        System.setProperty("javax.net.ssl.trustStore", RAIZ + trustStore);
         System.setProperty("javax.net.ssl.trustStoreType", "JCEKS");
         System.setProperty("javax.net.ssl.trustStorePassword", trustStorePass);
 
@@ -550,12 +569,11 @@ public class SSL_client {
                 ks = KeyStore.getInstance("JCEKS");
                 ts = KeyStore.getInstance("JCEKS");
 
-                ks.load(new FileInputStream(RAIZ + keyStore + ".jce"), contraseñaKeyStore);
-                ts.load(new FileInputStream(RAIZ + trustStore + ".jce"), contraseñaTrustStore);
+                ks.load(new FileInputStream(RAIZ + keyStore), contraseñaKeyStore);
+                ts.load(new FileInputStream(RAIZ + trustStore), contraseñaTrustStore);
 
                 kmf.init(ks, contraseñaKeyStore);
                 tmf.init(ts);
-
                 ctx.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
 
                 ssf = ctx.getSocketFactory();
@@ -598,7 +616,7 @@ public class SSL_client {
         // Obtener la clave privada del keystore
         ks = KeyStore.getInstance("JCEKS");
 
-        ks.load(new FileInputStream(keyStore + ".jce"), ks_password);
+        ks.load(new FileInputStream(keyStore), ks_password);
 
         KeyStore.PrivateKeyEntry pkEntry = (KeyStore.PrivateKeyEntry) ks.getEntry(entry_alias, new KeyStore.PasswordProtection(key_password));
         System.err.println(pkEntry);
@@ -661,7 +679,7 @@ public class SSL_client {
         char[] ks_password = trustStorePass.toCharArray();
 
         ks = KeyStore.getInstance("JCEKS");
-        ks.load(new FileInputStream(trustStore + ".jce"), ks_password);
+        ks.load(new FileInputStream(trustStore), ks_password);
 
         Enumeration<String> aliases = ks.aliases();
         System.out.println((String) aliases.nextElement());
@@ -785,7 +803,7 @@ public class SSL_client {
 
             ks_password = trustStorePass.toCharArray();
             ks = KeyStore.getInstance("JCEKS");
-            ks.load(new FileInputStream(RAIZ + trustStore + ".jce"), ks_password);
+            ks.load(new FileInputStream(RAIZ + trustStore), ks_password);
 
             // Obtener el certificado de un array de bytes
             // Obtener la clave publica del keystore
@@ -828,7 +846,7 @@ public class SSL_client {
     private static X509Certificate getCertificate(String keyStore, String keyStorePwd, String aliasCertificate) throws FileNotFoundException, KeyStoreException, IOException, NoSuchAlgorithmException, UnrecoverableKeyException, CertificateException {
 
         KeyStore keystore = KeyStore.getInstance("JCEKS");
-        keystore.load(new FileInputStream(keyStore + ".jce"), keyStorePwd.toCharArray());
+        keystore.load(new FileInputStream(keyStore), keyStorePwd.toCharArray());
         X509Certificate cert;
 
         cert = (X509Certificate) keystore.getCertificate(aliasCertificate);
