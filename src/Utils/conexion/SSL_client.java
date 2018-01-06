@@ -1,6 +1,9 @@
+package Utils.conexion;
 
+import Utils.conexion.Operaciones;
 import Utils.socket.SignedReader;
 import Utils.socket.SignedWriter;
+import graphic.DataSelector;
 import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -25,12 +28,14 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
 import java.io.ByteArrayInputStream;
+import java.net.Inet4Address;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.PublicKey;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.Enumeration;
+import javax.swing.JOptionPane;
 
 /*
  * To change this license header, choose License Headers in Project Properties.
@@ -46,7 +51,7 @@ public class SSL_client {
     private static final int PORT = 8080;
     private static final String RAIZ = "";
     private static String keyStore, trustStore;
-    private static String keyStorePass, trustStorePass, clientCN, tipoClave, ipServidor;
+    public static String keyStorePass, trustStorePass;
 
     public static final int NO_OPERATION = 0;
     public static final int REGISTRAR = 1;
@@ -58,102 +63,13 @@ public class SSL_client {
     public static final String FAIL_SIGN = "FIRMA INCORRECTA";
     public static final String OK = "OK";
 
-    public static void main(String[] args) {
-        try {
-            /*
-            Principal vent = new Principal();
-            vent.setLocationByPlatform(true);
-            vent.setVisible(true);
-             */
-            BufferedReader buffer = new BufferedReader(new InputStreamReader(System.in));
-
-            if (args.length != 2) {
-                System.out.println("Uso: SSL_client keyStoreFile trustStoreFile");
-                System.exit(0);
-            }
-
-            keyStore = args[0].trim();
-            trustStore = args[1].trim();
-
-            System.out.print("Introduzca la contraseña del keyStore: ");
-            System.out.print("> ");
-            keyStorePass = buffer.readLine().trim();
-
-            System.out.print("Introduzca la contraseña del trustStore: ");
-            System.out.print("> ");
-            trustStorePass = buffer.readLine().trim();
-
-            System.out.print("Introduzca su identificador (email@example.com): ");
-            System.out.print("> ");
-            clientCN = buffer.readLine().trim();
-
-            System.out.print("Introduzca el tipo de clave empleado (RSA/DSA): ");
-            System.out.print("> ");
-            tipoClave = buffer.readLine().toLowerCase();
-
-            System.out.print("Introduzca la dirección del servidor: ");
-            System.out.print("> ");
-            ipServidor = buffer.readLine().trim();
-
-            new SSL_client().definirKeyStores();
-
-            SSLSocketFactory socketFactory = (SSLSocketFactory) SSL_client.getServerSocketFactory("TLS");
-            SSLSocket socket = (SSLSocket) socketFactory.createSocket(ipServidor, PORT);
-
-            String[] suites = socket.getSupportedCipherSuites();
-            System.out.println("\n***** SELECCIONE UNA CYPHER SUITE ***** \n");
-
-            for (int i = 1; i < suites.length + 1; i++) {
-                System.out.println(i + ".-" + suites[i - 1]);
-            }
-
-            int suite;
-
-            do {
-                System.out.println("Indique el número de la suite elegida: ");
-                System.err.println("> ");
-                suite = Integer.parseInt(buffer.readLine());
-            } while (suite < 1 || suite > suites.length);
-
-            String aux = suites[suite];
-            String[] newSuites = {aux};
-            suites = null;
-            socket.setEnabledCipherSuites(newSuites);
-
-            System.out.println("Comienzo SSL Handshake -- Cliente y Server Autenticados");
-
-            socket.startHandshake();
-
-            System.out.println("Fin OK SSL Handshake");
-
-            new SSL_client().mainMenu(buffer);
-
-            System.out.println("¿Qué desea hacer?");
-            System.out.print("> ");
-
-          
-            Operaciones operaciones = new Operaciones(new SignedWriter(socket), new SignedReader(socket));
-            switch (buffer.readLine()) {
-                case "1":
-                	operaciones.registrarDocumento(buffer, keyStore, tipoClave,clientCN, keyStorePass);
-                	
-                    break;
-                case "2":         
-                    operaciones.recuperarDocumento(buffer, keyStore, keyStorePass, clientCN, tipoClave);
-                    break;
-                case "3":
-                	operaciones.listarDocumento(buffer, keyStore, keyStorePass, clientCN, tipoClave);
-                    break;
-
-                default:
-                    System.out.println("Saliendo de la aplicación...");
-                    System.exit(0);
-            }
-
-        } catch (IOException ex) {
-            Logger.getLogger(SSL_client.class.getName()).log(Level.SEVERE, null, ex);
-        }
-
+    public SSL_client(String keyStore, String trustStore) {
+        SSL_client.keyStore = keyStore;
+        SSL_client.trustStore = trustStore;
+        
+        DataSelector vent = new DataSelector(this,keyStore, trustStore);
+        vent.setLocationByPlatform(true);
+        vent.setVisible(true);
     }
 
     public static byte[] getSHA512(String docPath) throws FileNotFoundException, NoSuchAlgorithmException, IOException {
@@ -167,21 +83,9 @@ public class SSL_client {
         while ((longbloque = fmensaje.read(bloque)) > 0) {
             filesize = filesize + longbloque;
             md.update(bloque, 0, longbloque);
-        } 
+        }
         fmensaje.close();
         return md.digest();
-    }
-
-    public void mainMenu(BufferedReader bf) throws IOException {
-
-        System.out.println("********************************************");
-        System.out.println("* Bienvenido a Watermelon SSL/TLS Register *");
-        System.out.println("********************************************");
-
-        System.out.println("1) Registrar documento");
-        System.out.println("2) Recuperar documento");
-        System.out.println("3) Listar documentos");
-        System.out.println("4) Salir");
     }
 
     public void definirKeyStores() {
@@ -190,69 +94,15 @@ public class SSL_client {
         //System.setProperty("javax.net.debug", "all");
         // ----  Almacenes mios  -----------------------------
         // Almacen de claves
-        System.setProperty("javax.net.ssl.keyStore", RAIZ + keyStore);
+        System.setProperty("javax.net.ssl.keyStore", keyStore);
         System.setProperty("javax.net.ssl.keyStoreType", "JCEKS");
         System.setProperty("javax.net.ssl.keyStorePassword", keyStorePass);
 
         // Almacen de confianza
-        System.setProperty("javax.net.ssl.trustStore", RAIZ + trustStore);
+        System.setProperty("javax.net.ssl.trustStore",  trustStore);
         System.setProperty("javax.net.ssl.trustStoreType", "JCEKS");
         System.setProperty("javax.net.ssl.trustStorePassword", trustStorePass);
 
-    }
-
-    /**
-     * ****************************************************
-     * getServerSocketFactory(String type) {}
-     * ***************************************************
-     */
-    private static SocketFactory getServerSocketFactory(String type) {
-
-        if (type.equals("TLS")) {
-
-            SSLSocketFactory ssf;
-
-            try {
-
-                // Establecer el keymanager para la autenticacion del servidor
-                SSLContext ctx;
-                KeyManagerFactory kmf;
-                TrustManagerFactory tmf;
-                KeyStore ks, ts;
-
-                char[] contraseñaKeyStore = keyStorePass.toCharArray();
-                char[] contraseñaTrustStore = trustStorePass.toCharArray();
-
-                ctx = SSLContext.getInstance("TLS");
-                kmf = KeyManagerFactory.getInstance("SunX509");
-                tmf = TrustManagerFactory.getInstance("SunX509");
-
-                ks = KeyStore.getInstance("JCEKS");
-                ts = KeyStore.getInstance("JCEKS");
-
-                ks.load(new FileInputStream(RAIZ + keyStore), contraseñaKeyStore);
-                ts.load(new FileInputStream(RAIZ + trustStore), contraseñaTrustStore);
-
-                kmf.init(ks, contraseñaKeyStore);
-                tmf.init(ts);
-                ctx.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
-
-                ssf = ctx.getSocketFactory();
-
-                return ssf;
-
-            } catch (Exception e) {
-
-                e.printStackTrace();
-            }
-
-        } else {
-            System.out.println("Usando la Factoria socket por defecto (no SSL)");
-
-            return SocketFactory.getDefault();
-        }
-
-        return null;
     }
 
     public static byte[] sign(String docPath, String keyStore, String entry_alias) throws KeyStoreException, IOException, NoSuchAlgorithmException, UnrecoverableEntryException, UnrecoverableEntryException, InvalidKeyException, SignatureException, CertificateException {
@@ -304,7 +154,6 @@ public class SSL_client {
         }
 
         firma = signer.sign();
-
 
         System.out.println("*** FIRMA: ****");
         for (int i = 0; i < firma.length; i++) {
@@ -513,6 +362,4 @@ public class SSL_client {
         return cert;
     }
 
-   
-    
 }
