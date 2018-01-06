@@ -120,9 +120,6 @@ public class SSL_client {
         char[] ks_password = keyStorePass.toCharArray();
         char[] key_password = keyStorePass.toCharArray();
 
-        System.out.println("******************************************* ");
-        System.out.println("*               FIRMA                     * ");
-        System.out.println("******************************************* ");
 
         // Obtener la clave privada del keystore
         ks = KeyStore.getInstance("JCEKS");
@@ -133,10 +130,7 @@ public class SSL_client {
         System.err.println(pkEntry);
         PrivateKey privateKey = pkEntry.getPrivateKey();
 
-        // Visualizar clave privada
-        System.out.println("*** CLAVE PRIVADA ***");
-        System.out.println("Algoritmo de Firma (sin el Hash): " + privateKey.getAlgorithm());
-        System.out.println(privateKey);
+       ;
 
         // Creamos un objeto para firmar/verificar
         Signature signer = Signature.getInstance(algoritmo);
@@ -155,12 +149,7 @@ public class SSL_client {
 
         firma = signer.sign();
 
-        System.out.println("*** FIRMA: ****");
-        for (int i = 0; i < firma.length; i++) {
-            System.out.print(firma[i] + " ");
-        }
-        System.out.println();
-        System.out.println();
+       
 
         fmensaje.close();
 
@@ -176,10 +165,6 @@ public class SSL_client {
          * Verificacion
          * ****************************************************************
          */
-        System.out.println("************************************* ");
-        System.out.println("        VERIFICACION                  ");
-        System.out.println("************************************* ");
-
         byte bloque[] = new byte[1024];
         long filesize = 0;
         int longbloque;
@@ -191,7 +176,6 @@ public class SSL_client {
         ks.load(new FileInputStream(trustStore), ks_password);
 
         Enumeration<String> aliases = ks.aliases();
-        System.out.println((String) aliases.nextElement());
         while (aliases.hasMoreElements()) {
 
             FileInputStream fmensajeV = new FileInputStream(docPath);
@@ -201,8 +185,6 @@ public class SSL_client {
             // Obtener la clave publica del keystore
             PublicKey publicKey = ks.getCertificate(alias).getPublicKey();
 
-            System.out.println("*** CLAVE PUBLICA ***");
-            System.out.println(publicKey);
 
             // Obtener el usuario del Certificado tomado del KeyStore.
             // Hay que traducir el formato de certificado del formato del
@@ -218,7 +200,6 @@ public class SSL_client {
             // Creamos un objeto para verificar, pasandole el algoritmo leido
             // del certificado.
             Signature verifier = Signature.getInstance(cert.getSigAlgName());
-            System.out.println(cert.getSigAlgName());
             // Inicializamos el objeto para verificar
             verifier.initVerify(publicKey);
 
@@ -228,15 +209,12 @@ public class SSL_client {
             }
 
             boolean resultado;
-            System.out.println((String) aliases.nextElement());
             try {
                 resultado = verifier.verify(firma);
             } catch (Exception e) {
                 resultado = false;
             }
-            System.out.println();
             if (resultado == true) {
-                System.out.print("Verificacion correcta de la Firma");
                 fmensajeV.close();
                 return true;
 
@@ -245,7 +223,6 @@ public class SSL_client {
             fmensajeV.close();
 
         }
-        System.out.print("Fallo de verificacion de firma");
         return false;
     }
 
@@ -257,9 +234,6 @@ public class SSL_client {
          * Verificacion
          * ****************************************************************
          */
-        System.out.println("************************************* ");
-        System.out.println("        VERIFICACION                  ");
-        System.out.println("************************************* ");
         byte bloque[] = new byte[1024];
         long filesize = 0;
         int longbloque;
@@ -293,10 +267,6 @@ public class SSL_client {
             resultado = verifier.verify(firma);
         } catch (Exception e) {
             resultado = false;
-        }
-        if (resultado == true) {
-            System.out.print("Verificacion correcta de la Firma");
-
         }
 
         fmensajeV.close();
@@ -332,7 +302,6 @@ public class SSL_client {
                 try {
 
                     cert.verify(publicKey);
-                    System.out.println("\nCertificado correcto");
 
                     return true;
 
@@ -348,7 +317,6 @@ public class SSL_client {
         } catch (Exception ex) {
 
         }
-        System.out.println("Certificado incorrecto");
         return false;
     }
 

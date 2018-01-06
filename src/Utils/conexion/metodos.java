@@ -129,7 +129,7 @@ public class metodos {
             }
 
         } else {
-            System.out.println("Usando la Factoria socket por defecto (no SSL)");
+           //Usando la Factoria socket por defecto (no SSL)
 
             return SocketFactory.getDefault();
         }

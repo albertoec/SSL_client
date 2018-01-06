@@ -217,22 +217,17 @@ public class SignedReader extends SocketReader {
             Object[] objects = new Object[4];
 
             objects[0] = readLong();
-            System.out.println("Leido Long");
             objects[1] = readString();
-            System.out.println("Leido String");
             objects[2] = readString();
-            System.out.println("Leido String");
             objects[3] = readString();
-            System.out.println("Leido String");
 
             list.add(objects);
 
             int j = read();
-            System.out.println(j);
+            
             if (j == 255) {
                 break;
             }
-            System.out.println("No es el ultimo");
         }
 
         return list;

@@ -5,10 +5,9 @@
  */
 package graphic;
 
+import Utils.conexion.Operaciones;
 import Utils.conexion.metodos;
 import java.io.IOException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.net.ssl.SSLSocket;
 import javax.swing.JOptionPane;
 
@@ -18,6 +17,7 @@ import javax.swing.JOptionPane;
  */
 public class CipherSelector extends javax.swing.JFrame {
 
+    private final Operaciones operaciones;
     private final metodos Metodos;
     private final String[] suites;
     private final SSLSocket socket;
@@ -27,18 +27,19 @@ public class CipherSelector extends javax.swing.JFrame {
      *
      * @param Metodos
      * @param suites
+     * @param socket
+     * @param operaciones
      */
-    public CipherSelector(metodos Metodos, String[] suites, SSLSocket socket) {
+    public CipherSelector(metodos Metodos, String[] suites, SSLSocket socket, Operaciones operaciones) {
         initComponents();
         this.Metodos = Metodos;
         this.suites = suites;
-        this.socket = socket;
+        this.operaciones = operaciones;
         jComboBox1.removeAllItems();
-
+        this.socket = socket;
         for (String suit : suites) {
             jComboBox1.addItem(suit);
         }
-        setLookAndFeel();
     }
 
     /**
@@ -96,8 +97,10 @@ public class CipherSelector extends javax.swing.JFrame {
             socket.setEnabledCipherSuites(newSuites);
             socket.startHandshake();
             JOptionPane.showMessageDialog(this, "Handshake establecido con éxito", "Éxito", JOptionPane.INFORMATION_MESSAGE);
-            Principal vent = new Principal(Metodos, socket);
+
+            Principal vent = new Principal(Metodos, operaciones);
             vent.setLocationRelativeTo(this);
+            vent.lookandfeel();
             this.dispose();
             vent.setVisible(true);
 

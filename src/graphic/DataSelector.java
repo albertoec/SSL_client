@@ -5,10 +5,14 @@
  */
 package graphic;
 
+import Utils.conexion.Operaciones;
 import Utils.conexion.SSL_client;
 import Utils.conexion.metodos;
+import Utils.socket.SignedReader;
+import Utils.socket.SignedWriter;
 import java.io.IOException;
 import java.net.Inet4Address;
+import java.util.ArrayList;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import javax.swing.JOptionPane;
@@ -32,7 +36,6 @@ public class DataSelector extends javax.swing.JFrame {
         initComponents();
         Metodos = new metodos(keyStore, trustStore);
         this.parent = parent;
-        setLookAndFeel();
     }
 
     /**
@@ -60,9 +63,20 @@ public class DataSelector extends javax.swing.JFrame {
 
         jLabel1.setText("KeyStore Password:");
 
+        jPasswordField1.setText("123456789");
+
         jLabel2.setText("TrustStore Password:");
 
+        jPasswordField2.setText("123456789");
+
         jLabel3.setText("Identificador (example@dominio.com):");
+
+        jTextField1.setText("watermelon@seguridad.com");
+        jTextField1.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jTextField1ActionPerformed(evt);
+            }
+        });
 
         jComboBox1.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "RSA", "DSA" }));
 
@@ -70,7 +84,9 @@ public class DataSelector extends javax.swing.JFrame {
 
         jLabel5.setText("Dirección del servidor:");
 
-        jButton1.setText("Emepzar");
+        jTextField2.setText("localhost");
+
+        jButton1.setText("Empezar");
         jButton1.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 jButton1ActionPerformed(evt);
@@ -165,16 +181,18 @@ public class DataSelector extends javax.swing.JFrame {
         Metodos.setKeyStorePass(keyStorePass);
         Metodos.setTipoClave(tipoClave);
         Metodos.setTrustStorePass(trustStorePass);
-        SSL_client.keyStorePass=keyStorePass;
-        SSL_client.trustStorePass=trustStorePass;
+        SSL_client.keyStorePass = keyStorePass;
+        SSL_client.trustStorePass = trustStorePass;
         parent.definirKeyStores();
         try {
             SSLSocketFactory socketFactory = (SSLSocketFactory) Metodos.getServerSocketFactory("TLS");
             if (socketFactory != null) {
                 SSLSocket socket = (SSLSocket) socketFactory.createSocket(IP, metodos.getPORT());
-                
                 String[] suites = socket.getEnabledCipherSuites();
-                CipherSelector vent = new CipherSelector(Metodos, suites, socket);
+                SignedReader reader = new SignedReader(socket);
+                Operaciones operaciones = new Operaciones(new SignedWriter(socket), reader);
+                
+                CipherSelector vent = new CipherSelector(Metodos, suites, socket, operaciones);
                 vent.setLocationRelativeTo(this);
                 this.dispose();
                 vent.setVisible(true);
@@ -187,6 +205,10 @@ public class DataSelector extends javax.swing.JFrame {
 
 
     }//GEN-LAST:event_jButton1ActionPerformed
+
+    private void jTextField1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jTextField1ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_jTextField1ActionPerformed
     public void setLookAndFeel() {
         try {
             for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {

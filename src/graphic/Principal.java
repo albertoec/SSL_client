@@ -10,12 +10,8 @@ import Utils.conexion.metodos;
 import Utils.socket.SignedReader;
 import Utils.socket.SignedWriter;
 import java.awt.Desktop;
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.net.ssl.SSLSocket;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
@@ -34,19 +30,15 @@ public class Principal extends javax.swing.JFrame {
      *
      * @param Metodos
      * @param socket
+     * @param operaciones
      */
-    public Principal(metodos Metodos, SSLSocket socket) {
+    public Principal(metodos Metodos,  Operaciones operaciones) {
 
-        try {
             initComponents();
-            this.lookandfeel();
             this.Metodos = Metodos;
             this.setTitle(Metodos.getClientCN());
-            operaciones = new Operaciones(new SignedWriter(socket), new SignedReader(socket));
-        } catch (IOException ex) {
-            JOptionPane.showMessageDialog(this, "Se ha perdido la conexion con el servidor", "Erro", JOptionPane.ERROR_MESSAGE);
-            System.exit(0);
-        }
+            this.operaciones=operaciones;
+        
     }
 
     /**
@@ -188,7 +180,7 @@ public class Principal extends javax.swing.JFrame {
                     .addComponent(jTextField1)
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
                         .addGap(0, 0, Short.MAX_VALUE)
-                        .addComponent(jButton3, javax.swing.GroupLayout.PREFERRED_SIZE, 100, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addComponent(jButton3, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)))
                 .addContainerGap())
         );
         jPanel2Layout.setVerticalGroup(
@@ -237,7 +229,7 @@ public class Principal extends javax.swing.JFrame {
             .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 530, Short.MAX_VALUE)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel3Layout.createSequentialGroup()
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addComponent(jButton4, javax.swing.GroupLayout.PREFERRED_SIZE, 90, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(jButton4, javax.swing.GroupLayout.PREFERRED_SIZE, 110, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addContainerGap())
         );
         jPanel3Layout.setVerticalGroup(
@@ -299,7 +291,6 @@ public class Principal extends javax.swing.JFrame {
         } catch (IOException ex) {
             JOptionPane.showMessageDialog(this, "Excepción inesperada", "Error", JOptionPane.ERROR_MESSAGE);
         }
-        System.exit(0);
 
     }//GEN-LAST:event_jButton2ActionPerformed
 
@@ -329,20 +320,18 @@ public class Principal extends javax.swing.JFrame {
             }
             operaciones.recuperarDocumento(this, Metodos.getKeyStore(), Metodos.getKeyStorePass(), Metodos.getClientCN(), Metodos.getTipoClave(), idRegistro);
             try {
-                Desktop.getDesktop().open(new File("Recibidos"));
+                Desktop.getDesktop().open(new File("Recibido"));
             } catch (Exception ex) {
-
+                ex.printStackTrace();
             }
         } catch (IOException ex) {
             JOptionPane.showMessageDialog(this, "Excepción inesperada", "Error", JOptionPane.ERROR_MESSAGE);
         }
-        System.exit(0);
     }//GEN-LAST:event_jButton3ActionPerformed
 
     private void jButton4ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton4ActionPerformed
         operaciones.listarDocumento(this, Metodos.getKeyStore(), Metodos.getKeyStorePass(), Metodos.getClientCN(), Metodos.getTipoClave(), jTable1);
-        jButton4.setEnabled(false);
-        jTabbedPane1.setEnabled(false);
+
     }//GEN-LAST:event_jButton4ActionPerformed
 
     public void lookandfeel() {

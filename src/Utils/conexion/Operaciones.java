@@ -138,6 +138,7 @@ public class Operaciones {
                 Object[] datos = signedReader.ReadRecoveryResponse(new File(ruta_temp));
 
                 String destino = "Recibido/";
+                new File(destino).mkdirs();
                 String nombre_fichero = (String) datos[5];
                 boolean error_recibiendo = false;
                 if (!DatatypeConverter.printHexBinary(new CSVHandler().getSHA512(idRegistro)).equals(DatatypeConverter.printHexBinary(SSL_client.getSHA512(ruta_temp)))) {
@@ -156,15 +157,15 @@ public class Operaciones {
 
                 String resultadoOP = signedReader.readString();
                 if (resultadoOP.equalsIgnoreCase(SSL_client.FAIL_CERT)) {
-                    System.out.println(SSL_client.FAIL_CERT);
+                    JOptionPane.showMessageDialog(parent, SSL_client.FAIL_CERT, "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
                 } else if (resultadoOP.equalsIgnoreCase(SSL_client.FAIL_SIGN)) {
-                    System.out.println(SSL_client.FAIL_SIGN);
-                } else {
-                    System.out.println("\n****** CERTIFICADO CORRECTO *******");
+                    JOptionPane.showMessageDialog(parent, SSL_client.FAIL_SIGN, "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
                 }
+                JOptionPane.showMessageDialog(parent, "CERTIFICADO CORRECTO", "Éxito", JOptionPane.INFORMATION_MESSAGE);
 
                 String acceso = signedReader.readString();
-                System.out.println(acceso);
                 if (acceso.equals("ACCESO NO PERMITIDO")) {
                     JOptionPane.showMessageDialog(parent, "ACCESO NO PERMITIDO", "Error", JOptionPane.ERROR_MESSAGE);
                     return;
@@ -214,6 +215,7 @@ public class Operaciones {
             }
 
         } catch (IOException | HeadlessException | KeyStoreException | NoSuchAlgorithmException | CertificateException | NumberFormatException | UnrecoverableEntryException | InvalidKeyException | SignatureException ex) {
+
             JOptionPane.showMessageDialog(parent, "Error desconocido", "Error", JOptionPane.ERROR_MESSAGE);
         }
 
@@ -223,7 +225,9 @@ public class Operaciones {
 
         try {
             DefaultTableModel dtm = (DefaultTableModel) tabla.getModel();
-
+            while (dtm.getRowCount() > 0) {
+                dtm.removeRow(0);
+            }
             //-------- ESCRIBIMOS EL CÓDIGO DE OPERACIÓN ---------
             signedWriter.write(LISTAR);
             signedWriter.flush();
@@ -233,7 +237,6 @@ public class Operaciones {
                 return;
             }
 
-            System.out.println(clientCN + "-auth-" + tipoClave);
             X509Certificate cert = SSL_client.getCertificate(keyStore, keyStorePass, clientCN + "-auth-" + tipoClave);
 
             boolean sendOk = signedWriter.sendDocumentListRequest(cert);
@@ -254,39 +257,17 @@ public class Operaciones {
 
             ArrayList<Object[]> confidenciales = signedReader.ReadListDocumentsRequest();
             ArrayList<Object[]> noConfidenciales = signedReader.ReadListDocumentsRequest();
-            int numero_doc = 1;
             if (confidenciales != null) {
-                System.out.println("\n\n\n\n***** DOCUMENTOS PRIVADOS *****\n"
-                        + "***************************************");
                 for (int i = 0; i < confidenciales.size(); i++) {
                     dtm.addRow(new Object[]{"Privado", String.valueOf((long) confidenciales.get(i)[0]), (String) confidenciales.get(i)[1], (String) confidenciales.get(i)[2], (String) confidenciales.get(i)[3]});
-
-                    System.out.println("DOCUMENTO Nº" + numero_doc++);
-                    System.out.println("idRegistro:      " + (long) confidenciales.get(i)[0]);
-                    System.out.println("idPropietario:   " + (String) confidenciales.get(i)[1]);
-                    System.out.println("nombreDoc:       " + (String) confidenciales.get(i)[2]);
-                    System.out.println("selloTemporal:   " + (String) confidenciales.get(i)[3]);
-                    System.out.println("***************************************");
                 }
-            } else {
-                System.out.println("No tiene ningún documento registrado de forma confidencial");
             }
 
             if (noConfidenciales != null) {
-                System.out.println("\n\n\n\n***** DOCUMENTOS PÚBLICOS *****\n"
-                        + "***************************************");
                 for (int i = 0; i < noConfidenciales.size(); i++) {
-                    dtm.addRow(new Object[]{"Privado", String.valueOf((long) noConfidenciales.get(i)[0]), (String) noConfidenciales.get(i)[1], (String) noConfidenciales.get(i)[2], (String) noConfidenciales.get(i)[3]});
+                    dtm.addRow(new Object[]{"Público", String.valueOf((long) noConfidenciales.get(i)[0]), (String) noConfidenciales.get(i)[1], (String) noConfidenciales.get(i)[2], (String) noConfidenciales.get(i)[3]});
 
-                    System.out.println("DOCUMENTO Nº" + numero_doc++);
-                    System.out.println("idRegistro:      " + (long) noConfidenciales.get(i)[0]);
-                    System.out.println("idPropietario:   " + (String) noConfidenciales.get(i)[1]);
-                    System.out.println("nombreDoc:       " + (String) noConfidenciales.get(i)[2]);
-                    System.out.println("selloTemporal:   " + (String) noConfidenciales.get(i)[3]);
-                    System.out.println("***************************************");
                 }
-            } else {
-                System.out.println("No tiene ningún documento registrado de forma pública");
             }
             tabla.setModel(dtm);
         } catch (FileNotFoundException | KeyStoreException | NoSuchAlgorithmException | UnrecoverableKeyException | CertificateException ex) {
