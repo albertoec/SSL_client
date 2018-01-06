@@ -103,7 +103,7 @@ public class CipherSelector extends javax.swing.JFrame {
 
         } catch (IOException ex) {
             ex.printStackTrace();
-            JOptionPane.showMessageDialog(this, "No se ha podido realizar el handshake", "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "No se ha podido realizar el handshake, posiblemente el suit seleccionado no esté desponible en el servidor.", "Error", JOptionPane.ERROR_MESSAGE);
             System.exit(0);
         }
     }//GEN-LAST:event_jButton1ActionPerformed
