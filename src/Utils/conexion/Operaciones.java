@@ -124,7 +124,7 @@ public class Operaciones {
 
             }
             String documentStatus = signedReader.readString();
-            if (documentStatus.equals("DOCUMENTO INEXISTENTE")) {
+            if (documentStatus.equals("DOCUMENTO NO EXISTENTE")) {
                 JOptionPane.showMessageDialog(parent, "DOCUMENTO INEXISTENTE", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
@@ -141,9 +141,12 @@ public class Operaciones {
                 new File(destino).mkdirs();
                 String nombre_fichero = (String) datos[5];
                 boolean error_recibiendo = false;
-                if (!DatatypeConverter.printHexBinary(new CSVHandler().getSHA512(idRegistro)).equals(DatatypeConverter.printHexBinary(SSL_client.getSHA512(ruta_temp)))) {
-                    JOptionPane.showMessageDialog(parent, "DOCUMENTO ALTERADO POR EL REGISTRADOR", "Error", JOptionPane.ERROR_MESSAGE);
-                    error_recibiendo = true;
+                byte[] shaalamacenado = new CSVHandler().getSHA512(idRegistro);
+                if (shaalamacenado != null) {
+                    if (!DatatypeConverter.printHexBinary(shaalamacenado).equals(DatatypeConverter.printHexBinary(SSL_client.getSHA512(ruta_temp)))) {
+                        JOptionPane.showMessageDialog(parent, "DOCUMENTO ALTERADO POR EL REGISTRADOR", "Error", JOptionPane.ERROR_MESSAGE);
+                        error_recibiendo = true;
+                    }
                 }
                 destino += nombre_fichero;
                 if (error_recibiendo) {
@@ -177,6 +180,7 @@ public class Operaciones {
                 String sello = (String) datos[2];
                 Long id_registro_leido = Long.parseLong((String) datos[1]);
                 String destino = "Recibido/";
+                new File(destino).mkdirs();
                 String nombre_fichero = (String) datos[5];
                 destino += nombre_fichero;
 
